@@ -17,6 +17,9 @@ class EditorManager:
                 audio_dir = Path(audio_dir)
             audio_dir.mkdir(parents=True, exist_ok=True)
             audio_path = audio_dir / f"{video_path.stem}.wav"
+            if audio_path.exists():
+                logger.info(f"Audio already exists: {audio_path}")
+                return str(audio_path)
             with VideoFileClip(str(video_path)) as video_clip:
                 if video_clip.audio is None:
                     logger.error(f"No audio in video: {video_path}")
@@ -30,7 +33,7 @@ class EditorManager:
                 
                 temp_path.unlink()  # 删除临时文件
                 logger.info(f"Extracted: {audio_path}")
-            return audio_path
+            return str(audio_path)
         except Exception as e:
             logger.error(f"Extract error: {e}")
             
@@ -40,7 +43,7 @@ class EditorManager:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             with VideoFileClip(str(self.video_path)) as video:
                 cropped_video = video.subclip(start, end)
-                cropped_video.write_videofile(str(output_path), codec='libx264', logger=None)
+                cropped_video.write_videofile(str(output_path), codec='libx264')
             logger.info(f"Cropped: {output_path}")
         except Exception as e:
             logger.error(f"Crop error: {e}")

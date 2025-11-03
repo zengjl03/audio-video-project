@@ -107,14 +107,14 @@ class FireRedASRModel(TranscriptionModel):
             import concurrent.futures
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-                future1 = executor.submit(tmp_manager.transcribe, str(audio_path))
+                future1 = executor.submit(tmp_manager.transcribe, audio_path)
                 logger.info('fireredasr transcribe start')
-                future2 = executor.submit(model.transcribe, 'watrix', [str(audio_path)], decode_params)
+                future2 = executor.submit(model.transcribe, 'watrix', [audio_path], decode_params)
                 logger.info('fireredasr transcribe end')
                 tmp_results = future1.result()
-                results = future2.result()
+                fireredasr_results = future2.result()
             
-            return tmp_results, results
+            return tmp_results, fireredasr_results
 
         tmp_manager = TranscriptionManager(transcribe_mode="local", model_name="large-v3")
         decode_params = {
@@ -127,14 +127,14 @@ class FireRedASRModel(TranscriptionModel):
             "eos_penalty": 1.0
         }
 
-        tmp_results, results = transcribe_parallel(audio_path, tmp_manager, self.model, decode_params)
+        tmp_results, fireredasr_results = transcribe_parallel(audio_path, tmp_manager, self.model, decode_params)
         logger.info('large-v3-results', tmp_results)
-        logger.info('fireredasr-results', results)
+        logger.info('fireredasr-results', fireredasr_results)
 
         from core.llm import get_qwen3_model
         import ast
         qwen3_model = get_qwen3_model()
-        response = qwen3_model.chat(prompt=f'我将给你两段语音转写的结果，已知第一段转写结果较差，但能得到时间戳信息，第二段转写结果较好，但没有时间戳信息，请根据这两段转写结果，将第一段转写文本替换为第二段的文本，并返回结果。第一段转写结果：{tmp_results}，第二段转写结果：{results}，只能以json形式回复我，格式如下：[[转录文本, 开始时间, 结束时间] for seg in sentence_info]',enable_thinking=False)
+        response = qwen3_model.chat(prompt=f'我将给你两段语音转写的结果，已知第一段转写结果较差，但能得到时间戳信息，第二段转写结果较好，但没有时间戳信息，请根据这两段转写结果，将第一段转写文本替换为第二段的文本，并返回结果。第一段转写结果：{tmp_results}，第二段转写结果：{fireredasr_results}，只能以json形式回复我，格式如下：[[转录文本, 开始时间, 结束时间] for seg in sentence_info]',enable_thinking=False)
         return ast.literal_eval(response['response'])
 
 # 暂时弃用
@@ -380,6 +380,103 @@ class ApiTranscriptionModel(TranscriptionModel):
 
         return results
 
+class ApiTranscriptionModel_V2(ApiTranscriptionModel):
+    def __init__(self):
+        super().__init__()
+    
+    def _transcribe_chunks_parallel(self, chunk_info_list: List[Tuple[str, float, float]]) -> List[Tuple[float, float, str]]:
+        """
+        并发转录所有音频片段
+        :param chunk_info_list: 片段信息列表 [(片段路径, 起始时间, 结束时间), ...]
+        :return: 转录结果列表 [(起始时间, 结束时间, 转录文本), ...]
+        """
+        import concurrent.futures
+        from tqdm import tqdm
+        
+        if not chunk_info_list:
+            return []
+        
+        results = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.num_threads) as executor:
+            future_to_chunk = {
+                executor.submit(self._transcribe_single_chunk, chunk_info): chunk_info
+                for chunk_info in chunk_info_list
+            }
+            
+            for future in tqdm(
+                concurrent.futures.as_completed(future_to_chunk),
+                total=len(chunk_info_list),
+                desc="API并发转录片段中"
+            ):
+                results.append(future.result())
+        
+        # 按起始时间排序（确保顺序正确）
+        results.sort(key=lambda x: x[0])
+        return results
+    
+    def transcribe(self, audio_path: str) -> List[List[Any]]:
+        """
+        转录主方法：并发执行 large-v3 和 qwen3-asr-flash API 转录
+        """
+        import concurrent.futures
+        import shutil
+        
+        # 1. 加载音频并拆分（这一步需要先完成，因为两个任务都需要用到）
+        audio_data = self._load_audio(audio_path)
+        chunk_info_list = self._process_vad(audio_data)
+        
+        if not chunk_info_list:
+            return []
+        
+        # 2. 准备两个转录任务
+        tmp_manager = TranscriptionManager(transcribe_mode="local", model_name="large-v3")
+        
+        def transcribe_large_v3():
+            """large-v3 模型转录整个音频文件"""
+            logger.info('large-v3 transcribe start')
+            results = tmp_manager.transcribe(audio_path)
+            logger.info('large-v3 transcribe end')
+            return results
+        
+        def transcribe_qwen3_api():
+            """qwen3-asr-flash API 并发转录所有片段"""
+            logger.info('qwen3-asr-flash transcribe start')
+            results = self._transcribe_chunks_parallel(chunk_info_list)
+            logger.info('qwen3-asr-flash transcribe end')
+            return results
+        
+        # 3. 并发执行两个转录任务
+        tmp_results = None
+        qwen3_results = None
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            future_large_v3 = executor.submit(transcribe_large_v3)
+            future_qwen3 = executor.submit(transcribe_qwen3_api)
+            
+            # 等待两个任务完成
+            tmp_results = future_large_v3.result()
+            qwen3_results = future_qwen3.result()
+        
+        # 4. 清理临时文件
+        try:
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
+        except Exception as e:
+            logger.warning(f'清理临时文件失败: {e}')
+        
+        # 5. 使用 LLM 合并结果
+        logger.info(f'large-v3-results: {tmp_results}')
+        logger.info(f'qwen3-asr-flash-results: {qwen3_results}')
+        
+        from core.llm import get_qwen3_model
+        import ast
+        qwen3_model = get_qwen3_model()
+        response = qwen3_model.chat(
+            prompt=f'我将给你两段语音转写的结果，已知第一段转写结果较差，但能得到时间戳信息，第二段转写结果较好，但没有时间戳信息，请根据这两段转写结果，将第一段转写文本替换为第二段的文本，并返回结果。第一段转写结果：{tmp_results}，第二段转写结果：{qwen3_results}，只能以json形式回复我，不要使用markdown格式（非常重要），格式如下：[[转录文本, 开始时间, 结束时间] for seg in sentence_info]',
+            enable_thinking=False
+        )
+        
+        return ast.literal_eval(response['response'])
+
 class LocalModelFactory:
     @staticmethod
     def create_model(model_name: Literal["paraformer-zh", "large-v3", "SenseVoiceSmall", "firered-asr"]) -> TranscriptionModel:
@@ -408,7 +505,7 @@ class TranscriptionManager:
                 raise ValueError("本地模式必须指定model_name")
             self.transcriber = LocalModelFactory.create_model(model_name)
         elif transcribe_mode == "api":
-            self.transcriber = ApiTranscriptionModel()
+            self.transcriber = ApiTranscriptionModel_V2()
 
     def transcribe(self, audio_path: str) -> List[List[Any]]:
         """对外提供的转写接口，统一调用方式"""
