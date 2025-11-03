@@ -23,8 +23,8 @@ def pipeline(video_path: str):
         return
 
     # 2. 音频转写
-    transcriber = TranscriptionManager(transcribe_mode="local", model_name="firered-asr")
-    # transcriber = TranscriptionManager(transcribe_mode="api")
+    # transcriber = TranscriptionManager(transcribe_mode="local", model_name="firered-asr")
+    transcriber = TranscriptionManager(transcribe_mode="api")
     segments = transcriber.transcribe(audio_path)
     logger.info(f'segments: {segments}')
     if not segments:
@@ -66,5 +66,5 @@ if __name__ == "__main__":
 
     # subprocess.run(["python", "download.py"])
 
-    video_path = "video/test1.mp4"
+    video_path = "video/test14.mp4"
     pipeline(video_path)
