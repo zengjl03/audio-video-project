@@ -134,7 +134,7 @@ class FireRedASRModel(TranscriptionModel):
         from core.llm import get_qwen3_model
         import ast
         qwen3_model = get_qwen3_model()
-        response = qwen3_model.chat(prompt=f'我将给你两段语音转写的结果，已知第一段转写结果较差，但能得到时间戳信息，第二段转写结果较好，但没有时间戳信息，请根据这两段转写结果，将第一段转写文本替换为第二段的文本，并返回结果。第一段转写结果：{tmp_results}，第二段转写结果：{fireredasr_results}，只能以json形式回复我，格式如下：[[转录文本, 开始时间, 结束时间] for seg in sentence_info]',enable_thinking=False)
+        response = qwen3_model.chat(prompt=f'我将给你两段语音转写的结果，已知第一段转写结果较差，但能得到时间戳信息，第二段转写结果较好，但没有时间戳信息，请根据这两段转写结果，保留第一段的时间戳信息，将第一段转写文本替换为第二段的文本，并返回结果。第一段转写结果：{tmp_results}，第二段转写结果：{fireredasr_results}，只能以json形式回复我，格式如下：[[转录文本, 开始时间, 结束时间] for seg in sentence_info]',enable_thinking=False)
         return ast.literal_eval(response['response'])
 
 # 暂时弃用
@@ -471,7 +471,7 @@ class ApiTranscriptionModel_V2(ApiTranscriptionModel):
         import ast
         qwen3_model = get_qwen3_model()
         response = qwen3_model.chat(
-            prompt=f'我将给你两段语音转写的结果，已知第一段转写结果较差，但能得到时间戳信息，第二段转写结果较好，但没有时间戳信息，请根据这两段转写结果，将第一段转写文本替换为第二段的文本，并返回结果。第一段转写结果：{tmp_results}，第二段转写结果：{qwen3_results}，只能以json形式回复我，不要使用markdown格式（非常重要），格式如下：[[转录文本, 开始时间, 结束时间] for seg in sentence_info]',
+            prompt=f'我将给你两段语音转写的结果，已知第一段转写结果较差，但能得到时间戳信息，第二段转写结果较好，但没有时间戳信息，请根据这两段转写结果，保留第一段的时间戳信息，将第一段转写文本替换为第二段的文本，并返回结果。第一段转写结果：{tmp_results}，第二段转写结果：{qwen3_results}，只能以json形式回复我，不要使用markdown格式（非常重要），格式如下：[[转录文本, 开始时间, 结束时间] for seg in sentence_info]',
             enable_thinking=False
         )
         
