@@ -44,7 +44,8 @@ class ParaformerZhModel(TranscriptionModel):
             model="paraformer-zh",
             vad_model="fsmn-vad",
             punc_model="ct-punc",
-            spk_model="cam++"
+            spk_model="cam++",
+            disable_update=True
         )
 
     def transcribe(self, audio_path: str) -> List[List[Any]]:
@@ -63,12 +64,23 @@ class WhisperLargeV3Model(TranscriptionModel):
 
     def transcribe(self, audio_path: str) -> List[List[Any]]:
         segments, _ = self.model.transcribe(
-            audio=audio_path,
-            beam_size=5,
+            audio_path,
             language="zh",
-            max_new_tokens=128,
-            condition_on_previous_text=False
+            vad_filter=True,
+            vad_parameters={
+                'threshold': 0.35,              # 适中的敏感度
+                'min_speech_duration_ms': 150,  # 捕获较短的笑声
+                'min_silence_duration_ms': 400,
+                'speech_pad_ms': 400,           # 保留更多上下文
+            },
+            no_speech_threshold=0.7,           # 避免误判笑声为静音
+            initial_prompt="这是家庭视频，可能包含孩子和大人的对话和笑声，例如：哈哈哈、嘿嘿、呵呵",
+            condition_on_previous_text=True,   # 保持上下文连贯
+            temperature=0.3
         )
+        import time
+        time.sleep(5)
+        # logger.info(f'WhisperLargeV3Model transcribe segments: {list(segments)}')
         return [[segment.text, segment.start, segment.end] for segment in segments]
 
 
@@ -96,6 +108,7 @@ class SenseVoiceSmallModel(TranscriptionModel):
         text = rich_transcription_postprocess(res[0]["text"])
         return [[text, 0.0, 0.0]]
 
+# TODO FireRedASRModel 暂时没有调整到位
 class FireRedASRModel(TranscriptionModel):
     def __init__(self):
         from fireredasr.models.fireredasr import FireRedAsr
@@ -109,7 +122,7 @@ class FireRedASRModel(TranscriptionModel):
             with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
                 future1 = executor.submit(tmp_manager.transcribe, audio_path)
                 logger.info('fireredasr transcribe start')
-                future2 = executor.submit(model.transcribe, 'watrix', [audio_path], decode_params)
+                future2 = executor.submit(model.transcribe, ['watrix'], [audio_path], decode_params)
                 logger.info('fireredasr transcribe end')
                 tmp_results = future1.result()
                 fireredasr_results = future2.result()
@@ -117,25 +130,36 @@ class FireRedASRModel(TranscriptionModel):
             return tmp_results, fireredasr_results
 
         tmp_manager = TranscriptionManager(transcribe_mode="local", model_name="large-v3")
+
         decode_params = {
             "use_gpu": 1,
             "beam_size": 3,
             "nbest": 1,
             "decode_max_len": 0,
-            "softmax_smoothing": 1.25,
-            "aed_length_penalty": 0.6,
+            "softmax_smoothing": 1.0,
+            "aed_length_penalty": 0.0,
             "eos_penalty": 1.0
         }
+        results = self.model.transcribe(
+            ['watrix'],
+            [audio_path],
+            decode_params
+        )
 
-        tmp_results, fireredasr_results = transcribe_parallel(audio_path, tmp_manager, self.model, decode_params)
-        from core.llm import get_qwen3_model
-        import ast
-        qwen3_model = get_qwen3_model()
-        from core.prompts.mixed_model_prompt import system_prompt
-        prompt = system_prompt.format(tmp_results=tmp_results, main_model_results=fireredasr_results)
-        logger.info(f'prompt: {prompt}')
-        response = qwen3_model.chat(prompt=prompt,enable_thinking=False)
-        return ast.literal_eval(response['response'])
+        print(results)
+
+        # logger.info('aaaaresult',results)
+        
+
+        # tmp_results, fireredasr_results = transcribe_parallel(audio_path, tmp_manager, self.model, decode_params)
+        # from core.llm import get_qwen_model
+        # import ast
+        # qwen_model = get_qwen_model()
+        # from core.prompts.mixed_model_prompt import system_prompt
+        # prompt = system_prompt.format(tmp_results=tmp_results, main_model_results=fireredasr_results)
+        # logger.info(f'prompt: {prompt}')
+        # response = qwen_model.chat(prompt=prompt,enable_thinking=False)
+        # return ast.literal_eval(response['response'])
 
 # 暂时弃用
 class ApiTranscriptionModel(TranscriptionModel):
@@ -429,7 +453,7 @@ class ApiTranscriptionModel_V2(ApiTranscriptionModel):
             return []
         
         # 2. 准备两个转录任务
-        tmp_manager = TranscriptionManager(transcribe_mode="local", model_name="large-v3")
+        tmp_manager = TranscriptionManager(transcribe_mode="local", model_name="paraformer-zh")
         
         def transcribe_large_v3():
             """large-v3 模型转录整个音频文件"""
@@ -467,13 +491,13 @@ class ApiTranscriptionModel_V2(ApiTranscriptionModel):
         logger.info(f'large-v3-results: {tmp_results}')
         logger.info(f'qwen3-asr-flash-results: {qwen3_results}')
         
-        from core.llm import get_qwen3_model
+        from core.llm import get_qwen_model
         import ast
         from core.prompts.mixed_model_prompt import system_prompt
-        qwen3_model = get_qwen3_model()
+        qwen_model = get_qwen_model()
         prompt = system_prompt.format(tmp_results=tmp_results, main_model_results=qwen3_results)
         logger.info(f'prompt: {prompt}')
-        response = qwen3_model.chat(
+        response = qwen_model.chat(
             prompt=prompt,
             enable_thinking=False
         )

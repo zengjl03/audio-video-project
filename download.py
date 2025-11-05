@@ -8,7 +8,9 @@ warnings.filterwarnings("ignore")
 
 from huggingface_hub import snapshot_download
 
-model_1 = "FireRedTeam/FireRedASR-AED-L"
+# model_1 = "FireRedTeam/FireRedASR-AED-L"
+# model_1 = "Qwen/Qwen2.5-14B-Instruct"
+model_1 = "Qwen/Qwen2.5-14B-Instruct-GPTQ-Int4"
 # model_2 = 'Qwen/Qwen3-4B'
 # model_3 = "Systran/faster-whisper-large-v3"
 # model_list = [model_1, model_2, model_3]

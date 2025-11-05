@@ -1,0 +1,17 @@
+2025-11-05 19:17:21 | INFO | 日志文件已保存至: log/pipeline_test_20251105_191721.log
+2025-11-05 19:17:21 | INFO | 开始批量处理，共1个MP4文件
+2025-11-05 19:17:21 | INFO | 开始处理视频: video/test3.mp4
+2025-11-05 19:17:21 | INFO | Audio already exists: /home/zengjianglin/code/audio-video-project/audio/test3.wav
+2025-11-05 19:17:21 | INFO | Extracted: /home/zengjianglin/code/audio-video-project/audio/test3.wav
+2025-11-05 19:17:58 | INFO | segments: [['把这个给你，', 0.09, 0.93], ['谢谢阿姨，', 1.19, 2.01], ['不客气叫姐姐。', 2.13, 3.49], ['哎，', 3.73, 3.87], ['不用叫不用叫姐姐，', 3.87, 5.15], ['我和你们妈妈一样大了，', 5.15, 6.925], ['那叫妈妈。', 8.45, 9.695]]
+2025-11-05 19:17:58 | INFO | 转写完成，获取到7个片段: video/test3.mp4
+2025-11-05 19:17:58 | INFO | 正在加载模型: Qwen/Qwen2.5-14B-Instruct-GPTQ-Int4
+2025-11-05 19:18:08 | INFO | 模型加载完成
+2025-11-05 19:18:11 | INFO | llm analyze response: {
+  "highlights": []
+}
+2025-11-05 19:18:11 | INFO | 分析完成，获取到0个精彩片段: video/test3.mp4
+2025-11-05 19:18:11 | WARNING | 未提取到精彩片段: video/test3.mp4
+2025-11-05 19:18:12 | INFO | ----------------------------------------------------------
+2025-11-05 19:18:12 | INFO | 所有视频处理完毕，总耗时50.59秒
+2025-11-05 19:18:12 | INFO | 完整日志已保存至: log/pipeline_test_20251105_191721.log

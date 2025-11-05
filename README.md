@@ -30,7 +30,7 @@ conda env create -f environment.yml
 ```
 测试时使用的是cuda11.8
 ```bash
-conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch-c nvidia
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 ```
 
 2. 下载模型（直接运行main.py也会自动下载模型）

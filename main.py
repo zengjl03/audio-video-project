@@ -20,7 +20,7 @@ def pipeline(video_path: str):
         return
 
     # 2. 音频转写
-    transcriber = TranscriptionManager(transcribe_mode="local", model_name="firered-asr")
+    transcriber = TranscriptionManager(transcribe_mode="local", model_name="large-v3")
     # transcriber = TranscriptionManager(transcribe_mode="api")
     segments = transcriber.transcribe(audio_path)
     logger.info(f'segments: {segments}')
@@ -29,11 +29,11 @@ def pipeline(video_path: str):
         return
 
     # 3. 拼接带时间文本
-    trans_text = ''.join([f"[{start} - {end}] {text}\n" for text, start, end in segments])
+    trans_text = ' '.join([f"[{start} - {end}] {text}\n" for text, start, end in segments])
 
     # 4. LLM/大模型分析精彩片段
-    # highlighter = AnalyzerManager(mode='local')
     highlighter = AnalyzerManager(mode='local')
+    # highlighter = AnalyzerManager(mode='local')
     highlights = highlighter.analyze(trans_text)
 
     logger.info(f'highlights: {highlights}')
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     #     pipeline(video_path)
     #     end_time = time.time()
     #     logger.info(f'处理时间: {end_time - start_time}秒')
-    video_path = "video/test1.mp4"
+    video_path = "video/合成.mp4"
     start_time = time.time()
     pipeline(video_path)
     end_time = time.time()
