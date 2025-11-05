@@ -1,9 +1,7 @@
-import logging
 from pathlib import Path
 from moviepy.editor import VideoFileClip
-
 from loguru import logger
-from pydub import AudioSegment
+import subprocess
 
 class EditorManager:
     def __init__(self,video_path):
@@ -20,19 +18,16 @@ class EditorManager:
             if audio_path.exists():
                 logger.info(f"Audio already exists: {audio_path}")
                 return str(audio_path)
-            with VideoFileClip(str(video_path)) as video_clip:
-                if video_clip.audio is None:
-                    logger.error(f"No audio in video: {video_path}")
-                    return None
-
-                temp_path = audio_dir / f"{video_path.stem}_temp.wav"
-                video_clip.audio.write_audiofile(str(temp_path), logger=None)
-                audio = AudioSegment.from_wav(temp_path)
-                audio = audio.set_channels(1)  # 转为单声道
-                audio.export(audio_path, format="wav")  # 覆盖原路径
-                
-                temp_path.unlink()  # 删除临时文件
-                logger.info(f"Extracted: {audio_path}")
+            cmd = [
+                'ffmpeg', '-i', str(video_path),
+                '-ac', '1',  # 转为单声道
+                '-y',  # 覆盖输出文件
+                str(audio_path)
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=False)  # 不自动解码，避免编码问题
+            if result.returncode != 0:
+                logger.error(f"FFmpeg 错误: {result.stderr.decode('gbk', errors='replace')}")
+            logger.info(f"Extracted: {audio_path}")
             return str(audio_path)
         except Exception as e:
             logger.error(f"Extract error: {e}")
@@ -41,10 +36,29 @@ class EditorManager:
         try:
             output_path = Path(output_path)
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            with VideoFileClip(str(self.video_path)) as video:
-                cropped_video = video.subclip(start, end)
-                cropped_video.write_videofile(str(output_path), codec='libx264')
+            
+            cmd = [
+                'ffmpeg',
+                '-ss', str(start),       # 开始时间
+                '-to', str(end),         # 结束时间
+                '-i', str(self.video_path),  # 输入文件
+                '-c:v', 'copy',          # 视频流直接复制（不重新编码，避免编码器问题）
+                '-c:a', 'copy',          # 音频流直接复制
+                '-copyts',               # 保留时间戳
+                '-y',                    # 覆盖输出
+                str(output_path)
+            ]
+            
+            # 执行命令，忽略输出避免编码问题
+            subprocess.run(
+                cmd, 
+                check=True, 
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
             logger.info(f"Cropped: {output_path}")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"FFmpeg crop error (return code {e.returncode})")
         except Exception as e:
             logger.error(f"Crop error: {e}")
 

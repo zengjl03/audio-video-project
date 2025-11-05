@@ -1,11 +1,8 @@
 import os
-from glob import glob
 from pathlib import Path
-import subprocess
 from core.extract import EditorManager
 from core.transcription import TranscriptionManager
 from core.highlight import AnalyzerManager
-import logging
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,7 +12,7 @@ def pipeline(video_path: str):
     video_path = Path(video_path)
     logger.info(f"处理视频: {video_path}")
 
-    # 1. 音频提取
+    # # 1. 音频提取
     editor = EditorManager(video_path)
     audio_path = editor.extract_audio()
     if not audio_path:
@@ -23,8 +20,8 @@ def pipeline(video_path: str):
         return
 
     # 2. 音频转写
-    # transcriber = TranscriptionManager(transcribe_mode="local", model_name="firered-asr")
-    transcriber = TranscriptionManager(transcribe_mode="api")
+    transcriber = TranscriptionManager(transcribe_mode="local", model_name="firered-asr")
+    # transcriber = TranscriptionManager(transcribe_mode="api")
     segments = transcriber.transcribe(audio_path)
     logger.info(f'segments: {segments}')
     if not segments:
@@ -45,9 +42,8 @@ def pipeline(video_path: str):
         logger.error(f"未提取到精彩片段，跳过: {video_path}")
         return
 
-    # 5. 批量裁剪高光片段
     for idx, clip in enumerate(highlights, 1):
-        outname = f"clip_{video_path.stem}_{idx:02d}.mp4"
+        outname = f"clip_{Path(video_path).stem}_{idx:02d}.mp4"
         outpath = Path(os.getenv("PROCESSED_DIR",'processed')) / outname
         editor.crop_video(outpath, clip.get('start'), clip.get('end'))
     logger.info(f"已处理完毕: {video_path}")
@@ -61,10 +57,19 @@ if __name__ == "__main__":
     #         logger.error(f"处理{vfile}时发生异常: {e}")
     from loguru import logger
     from init import setup
+    import time
     # 初始化
     setup()
 
     # subprocess.run(["python", "download.py"])
-
-    video_path = "video/test14.mp4"
+    # for v in [1,2,3,4,5,6,7,8,9,10,31,33,37]:
+    #     video_path = f'video/test{v}.mp4'
+    #     start_time = time.time()
+    #     pipeline(video_path)
+    #     end_time = time.time()
+    #     logger.info(f'处理时间: {end_time - start_time}秒')
+    video_path = "video/test1.mp4"
+    start_time = time.time()
     pipeline(video_path)
+    end_time = time.time()
+    logger.info(f'处理时间: {end_time - start_time}秒')

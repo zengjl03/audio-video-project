@@ -128,13 +128,13 @@ class FireRedASRModel(TranscriptionModel):
         }
 
         tmp_results, fireredasr_results = transcribe_parallel(audio_path, tmp_manager, self.model, decode_params)
-        logger.info('large-v3-results', tmp_results)
-        logger.info('fireredasr-results', fireredasr_results)
-
         from core.llm import get_qwen3_model
         import ast
         qwen3_model = get_qwen3_model()
-        response = qwen3_model.chat(prompt=f'我将给你两段语音转写的结果，已知第一段转写结果较差，但能得到时间戳信息，第二段转写结果较好，但没有时间戳信息，请根据这两段转写结果，保留第一段的时间戳信息，将第一段转写文本替换为第二段的文本，并返回结果。第一段转写结果：{tmp_results}，第二段转写结果：{fireredasr_results}，只能以json形式回复我，格式如下：[[转录文本, 开始时间, 结束时间] for seg in sentence_info]',enable_thinking=False)
+        from core.prompts.mixed_model_prompt import system_prompt
+        prompt = system_prompt.format(tmp_results=tmp_results, main_model_results=fireredasr_results)
+        logger.info(f'prompt: {prompt}')
+        response = qwen3_model.chat(prompt=prompt,enable_thinking=False)
         return ast.literal_eval(response['response'])
 
 # 暂时弃用
@@ -469,9 +469,12 @@ class ApiTranscriptionModel_V2(ApiTranscriptionModel):
         
         from core.llm import get_qwen3_model
         import ast
+        from core.prompts.mixed_model_prompt import system_prompt
         qwen3_model = get_qwen3_model()
+        prompt = system_prompt.format(tmp_results=tmp_results, main_model_results=qwen3_results)
+        logger.info(f'prompt: {prompt}')
         response = qwen3_model.chat(
-            prompt=f'我将给你两段语音转写的结果，已知第一段转写结果较差，但能得到时间戳信息，第二段转写结果较好，但没有时间戳信息，请根据这两段转写结果，保留第一段的时间戳信息，将第一段转写文本替换为第二段的文本，并返回结果。第一段转写结果：{tmp_results}，第二段转写结果：{qwen3_results}，只能以json形式回复我，不要使用markdown格式（非常重要），格式如下：[[转录文本, 开始时间, 结束时间] for seg in sentence_info]',
+            prompt=prompt,
             enable_thinking=False
         )
         
