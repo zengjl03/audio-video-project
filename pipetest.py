@@ -71,7 +71,7 @@ def pipeline(video_path: Path):
         trans_text = ' '.join([f"[{start} - {end}] {text}\n" for text, start, end in segments])
 
         # 4. 大模型分析精彩片段
-        highlighter = AnalyzerManager(mode='api')
+        highlighter = AnalyzerManager(mode='local')
         highlights = highlighter.analyze(trans_text)
 
         logger.info(f"分析完成，获取到{len(highlights)}个精彩片段: {video_path}")

@@ -1,0 +1,5 @@
+2025-11-05 20:38:14 | INFO | 日志文件已保存至: log/pipeline_test_20251105_203814.log
+2025-11-05 20:38:14 | INFO | 开始批量处理，共1个MP4文件
+2025-11-05 20:38:14 | INFO | 开始处理视频: video/testtutu.mp4
+2025-11-05 20:38:14 | INFO | Audio already exists: /home/zengjianglin/code/audio-video-project/audio/testtutu.wav
+2025-11-05 20:38:16 | INFO | Extracted: /home/zengjianglin/code/audio-video-project/audio/testtutu.wav
