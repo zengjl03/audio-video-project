@@ -1,0 +1,61 @@
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Any, List, Literal
+from loguru import logger
+import time
+from functools import wraps
+
+def timer(func):
+    """计算函数执行时间的装饰器"""
+    @wraps(func) 
+    def wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        end_time = time.perf_counter()
+        elapsed_time = end_time - start_time
+        logger.info(f"函数 {func.__name__} 执行完成，耗时: {elapsed_time:.6f} 秒")
+        return result
+    return wrapper
+
+class TranscriptionModel(ABC):
+    @abstractmethod
+    def transcribe(self, audio_path: str) -> List[List[Any]]:
+        """
+        转写音频文件
+        :param audio_path: 音频文件路径
+        :return: 转写结果，格式为 [[文本, 开始时间(秒), 结束时间(秒)], ...]
+        """
+        pass
+
+@dataclass
+class TranscriptionLocalModelConfig:
+    mode:str = 'local'
+    model_name: Literal["paraformer-zh", "large-v3", "sense-voice-small", "firered-asr"] = "paraformer-zh"
+
+@dataclass
+class TranscriptionAPIModelConfig:
+    mode:str = "api"
+
+@dataclass
+class AnalyzerAPIModelConfig:
+    model_name:str
+    base_url:str
+    api_key:str
+    mode:str = 'api'
+
+@dataclass
+class AnalyzerLocalModelConfig:
+    mode:str = 'local'
+    model_name:Literal["qwen3-4b","qwen2.5-14b-instruct","qwen2.5-14b-instruct-gptq-int4"] = "qwen3-4b"
+
+@dataclass
+class Config:
+    video_path:str
+    transcription_config: TranscriptionLocalModelConfig | TranscriptionAPIModelConfig
+    analyzer_config: AnalyzerAPIModelConfig | AnalyzerLocalModelConfig
+    output_dir:str
+
+    # 并行配置
+    segment_duration_minutes:int | None = None
+    max_workers:int | None = None
+    temp_dir:str | None = None

@@ -17,7 +17,7 @@ class EditorManager:
             audio_path = audio_dir / f"{video_path.stem}.wav"
             if audio_path.exists():
                 logger.info(f"Audio already exists: {audio_path}")
-                # return str(audio_path)
+                return str(audio_path)
             cmd = [
                 'ffmpeg', '-i', str(video_path),
                 '-ac', '1',  # 转为单声道

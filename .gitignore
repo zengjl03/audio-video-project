@@ -1,8 +1,11 @@
 __pycache__/
 audio/
-processed/
+processed*/
+*mp4
+*wav
 video/
 Qwen/
 Systran/
 FireRedTeam/
 FireRedASR/
+tmp/

@@ -17,6 +17,7 @@ import io
 import argparse
 import warnings
 warnings.filterwarnings("ignore")
+from core.utils import TranscriptionLocalModelConfig, TranscriptionAPIModelConfig, TranscriptionModel
 torch.serialization.add_safe_globals([argparse.Namespace])
 
 from loguru import logger
@@ -26,17 +27,6 @@ os.environ['HF_ENDPOINT'] = "https://hf-mirror.com"
 # 全局常量（与参考代码一致）
 WAV_SAMPLE_RATE = 16000
 load_dotenv()
-
-class TranscriptionModel(ABC):
-    @abstractmethod
-    def transcribe(self, audio_path: str) -> List[List[Any]]:
-        """
-        转写音频文件
-        :param audio_path: 音频文件路径
-        :return: 转写结果，格式为 [[文本, 开始时间(秒), 结束时间(秒)], ...]
-        """
-        pass
-
 
 class ParaformerZhModel(TranscriptionModel):
     def __init__(self):
@@ -49,7 +39,7 @@ class ParaformerZhModel(TranscriptionModel):
         )
 
     def transcribe(self, audio_path: str) -> List[List[Any]]:
-        res = self.model.generate(input=audio_path, batch_size_s=600, hotword='魔搭')[0]
+        res = self.model.generate(input=audio_path, batch_size_s=1200, hotword='魔搭')[0]
         sentence_info = res['sentence_info']
         return [[seg['text'], seg['start'] / 1000, seg['end'] / 1000] for seg in sentence_info]
 
@@ -491,27 +481,27 @@ class ApiTranscriptionModel_V2(ApiTranscriptionModel):
         logger.info(f'large-v3-results: {tmp_results}')
         logger.info(f'qwen3-asr-flash-results: {qwen3_results}')
         
-        from core.llm import get_qwen_model
-        import ast
-        from core.prompts.mixed_model_prompt import system_prompt
-        qwen_model = get_qwen_model()
-        prompt = system_prompt.format(tmp_results=tmp_results, main_model_results=qwen3_results)
-        logger.info(f'prompt: {prompt}')
-        response = qwen_model.chat(
-            prompt=prompt,
-            enable_thinking=False
-        )
+        # from core.llm import get_qwen_model
+        # import ast
+        # from core.prompts.mixed_model_prompt import system_prompt
+        # qwen_model = get_qwen_model()
+        # prompt = system_prompt.format(tmp_results=tmp_results, main_model_results=qwen3_results)
+        # logger.info(f'prompt: {prompt}')
+        # response = qwen_model.chat(
+        #     prompt=prompt,
+        #     enable_thinking=False
+        # )
         
-        return ast.literal_eval(response['response'])
+        # return ast.literal_eval(response['response'])
 
 class LocalModelFactory:
     @staticmethod
-    def create_model(model_name: Literal["paraformer-zh", "large-v3", "SenseVoiceSmall", "firered-asr"]) -> TranscriptionModel:
+    def create_model(model_name: Literal["paraformer-zh", "large-v3", "sense-voice-small", "firered-asr"]) -> TranscriptionModel:
         """根据模型名创建对应的本地模型实例"""
         model_map = {
             "paraformer-zh": ParaformerZhModel,
             "large-v3": WhisperLargeV3Model,
-            "SenseVoiceSmall": SenseVoiceSmallModel,
+            "sense-voice-small": SenseVoiceSmallModel,
             "firered-asr": FireRedASRModel
         }
         if model_name not in model_map:
@@ -521,33 +511,18 @@ class LocalModelFactory:
 class TranscriptionManager:
     def __init__(
         self,
-        transcribe_mode: Literal["local", "api"],
-        model_name: Optional[Literal["paraformer-zh", "large-v3", "SenseVoiceSmall", "firered-asr"]] = None
+        config: TranscriptionLocalModelConfig | TranscriptionAPIModelConfig
     ):
-        self.transcribe_mode = transcribe_mode
+        self.transcribe_mode = config.mode
         self.transcriber: TranscriptionModel
 
-        if transcribe_mode == "local":
-            if not model_name:
+        if isinstance(config, TranscriptionLocalModelConfig):
+            if not config.model_name:
                 raise ValueError("本地模式必须指定model_name")
-            self.transcriber = LocalModelFactory.create_model(model_name)
-        elif transcribe_mode == "api":
+            self.transcriber = LocalModelFactory.create_model(config.model_name)
+        elif isinstance(config, TranscriptionAPIModelConfig):
             self.transcriber = ApiTranscriptionModel_V2()
 
     def transcribe(self, audio_path: str) -> List[List[Any]]:
         """对外提供的转写接口，统一调用方式"""
         return self.transcriber.transcribe(audio_path)
-
-
-if __name__ == "__main__":
-    # try:
-    local_manager = TranscriptionManager(transcribe_mode="local", model_name="firered-asr")
-    print(local_manager.transcribe("../audio/test2.wav"))
-    # except Exception as e:
-    #     print(f"本地转写出错: {e}")
-
-    # try:
-    # api_manager = TranscriptionManager(transcribe_mode="api")
-    # print(api_manager.transcribe("../audio/合成.wav"))
-    # except Exception as e:
-    #     print(f"API转写出错: {e}")

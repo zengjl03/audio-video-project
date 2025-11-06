@@ -1,0 +1,8 @@
+2025-11-06 15:20:10 | INFO | 日志文件已保存至: log/pipeline_test_20251106_152010.log
+2025-11-06 15:20:43 | INFO | 开始处理视频: video/test1.mp4
+2025-11-06 15:20:43 | INFO | Audio already exists: /home/zengjianglin/code/audio-video-project/audio/test1.wav
+2025-11-06 15:20:43 | INFO | Extracted: /home/zengjianglin/code/audio-video-project/audio/test1.wav
+2025-11-06 15:20:45 | INFO | segments: [['那不需要，', 1.17, 2.05], ['我我需要你你需要我干啥，', 2.17, 7.28], ['我叫你腿翘到我身上睡觉。', 7.92, 11.545], ['嗯嗯，', 13.11, 14.78], ['嘿嘿哈啊嘿嘿，', 17.56, 20.81], ['抖音。', 23.54, 24.085]]
+2025-11-06 15:20:45 | INFO | 转写完成，获取到6个片段: video/test1.mp4
+2025-11-06 15:20:48 | INFO | 分析完成，获取到0个精彩片段: video/test1.mp4
+2025-11-06 15:20:48 | WARNING | 未提取到精彩片段: video/test1.mp4

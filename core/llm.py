@@ -10,15 +10,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-llm_model = os.getenv("LLM_MODEL")
-
-if llm_model is None:
-    raise ValueError("LLM_MODEL is not set")
-
 model_map = {
     "qwen3-4b": "Qwen/Qwen3-4B",
-    "qwen2.5-14b": "Qwen/Qwen2.5-14B-Instruct",
-    "qwen2.5-14b-gptq-int4": "Qwen/Qwen2.5-14B-Instruct-GPTQ-Int4",
+    "qwen2.5-14b-instruct": "Qwen/Qwen2.5-14B-Instruct",
+    "qwen2.5-14b-instruct-gptq-int4": "Qwen/Qwen2.5-14B-Instruct-GPTQ-Int4",
 }
 
 class QwenChatModel:
@@ -107,8 +102,8 @@ class QwenChatModel:
 
 _qwen_model: Optional[QwenChatModel] = None
 
-def get_qwen_model() -> QwenChatModel:
+def get_qwen_model(model_name:str) -> QwenChatModel:
     global _qwen_model
     if _qwen_model is None:
-        _qwen_model = QwenChatModel(model_name=model_map[llm_model])
+        _qwen_model = QwenChatModel(model_name=model_map[model_name])
     return _qwen_model

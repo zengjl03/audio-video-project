@@ -1,12 +1,15 @@
 import os
 from dotenv import load_dotenv
 from loguru import logger
+from pathlib import Path
 load_dotenv()
+import time
 
 def setup_logger():
     # 日志文件路径：默认 log/pipeline.log，支持环境变量 LOG_DIR
-    log_dir = os.getenv("LOG_DIR", "log")
-    log_file = os.path.join(log_dir, "pipeline.log")
+    log_dir = Path(os.getenv("LOG_DIR", "log"))
+    log_prefix = os.getenv("LOG_PREFIX", "pipeline")
+    log_file = log_dir / f"{log_prefix}_{time.strftime('%Y%m%d_%H%M%S')}.log"
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
     
     # 配置 loguru：输出到文件 + 控制台，自动轮转
@@ -26,5 +29,9 @@ def setup_logger():
         format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level}</level> | <level>{message}</level>"
     )
 
+    return log_file
+
 def setup():
-    setup_logger()
+    log_file = setup_logger()
+    logger.info(f"日志文件已保存至: {log_file}")
+    return log_file
