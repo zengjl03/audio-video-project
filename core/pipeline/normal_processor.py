@@ -34,11 +34,12 @@ class NormalProcessor(PipelineProcessor):
 
         # 2. 音频转写
         segments = self.transcriber.transcribe(audio_path)
-        logger.info(f"segments: {segments}")
-        logger.info(f"转写完成，获取到{len(segments)}个片段: {self.video_path}")
         if not segments:
             logger.error(f"音频转写失败，跳过: {self.video_path}")
             return
+
+        logger.info(f"segments: {segments}")
+        logger.info(f"转写完成，获取到{len(segments)}个片段: {self.video_path}")
 
         # 3. 拼接带时间文本
         trans_text = ' '.join([f"[{start} - {end}] {text}\n" for text, start, end in segments])

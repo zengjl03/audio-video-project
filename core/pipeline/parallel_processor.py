@@ -46,6 +46,9 @@ def _process_segment_worker(
         if not segments:
             logger.error(f"[进程 {segment_index+1}] 音频转写失败")
             return []
+
+        logger.info(f"segments: {segments}")
+        logger.info(f"转写完成，获取到{len(segments)}个片段: {segment_path.name}")
         
         # 3. 拼接带时间文本
         trans_text = ' '.join([f"[{start} - {end}] {text}\n" for text, start, end in segments])

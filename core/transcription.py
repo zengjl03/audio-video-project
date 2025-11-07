@@ -56,20 +56,8 @@ class WhisperLargeV3Model(TranscriptionModel):
         segments, _ = self.model.transcribe(
             audio_path,
             language="zh",
-            vad_filter=True,
-            vad_parameters={
-                'threshold': 0.35,              # 适中的敏感度
-                'min_speech_duration_ms': 150,  # 捕获较短的笑声
-                'min_silence_duration_ms': 400,
-                'speech_pad_ms': 400,           # 保留更多上下文
-            },
-            no_speech_threshold=0.7,           # 避免误判笑声为静音
-            initial_prompt="这是家庭视频，可能包含孩子和大人的对话和笑声，例如：哈哈哈、嘿嘿、呵呵",
-            condition_on_previous_text=True,   # 保持上下文连贯
-            temperature=0.3
+            no_speech_threshold=0.7           # 避免误判笑声为静音
         )
-        import time
-        time.sleep(5)
         # logger.info(f'WhisperLargeV3Model transcribe segments: {list(segments)}')
         return [[segment.text, segment.start, segment.end] for segment in segments]
 
@@ -442,57 +430,47 @@ class ApiTranscriptionModel_V2(ApiTranscriptionModel):
         if not chunk_info_list:
             return []
         
-        # 2. 准备两个转录任务
-        tmp_manager = TranscriptionManager(transcribe_mode="local", model_name="paraformer-zh")
-        
-        def transcribe_large_v3():
-            """large-v3 模型转录整个音频文件"""
-            logger.info('large-v3 transcribe start')
-            results = tmp_manager.transcribe(audio_path)
-            logger.info('large-v3 transcribe end')
-            return results
-        
         def transcribe_qwen3_api():
             """qwen3-asr-flash API 并发转录所有片段"""
             logger.info('qwen3-asr-flash transcribe start')
             results = self._transcribe_chunks_parallel(chunk_info_list)
             logger.info('qwen3-asr-flash transcribe end')
             return results
-        
-        # 3. 并发执行两个转录任务
-        tmp_results = None
-        qwen3_results = None
-        
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-            future_large_v3 = executor.submit(transcribe_large_v3)
-            future_qwen3 = executor.submit(transcribe_qwen3_api)
-            
-            # 等待两个任务完成
-            tmp_results = future_large_v3.result()
-            qwen3_results = future_qwen3.result()
-        
-        # 4. 清理临时文件
-        try:
-            shutil.rmtree(self.temp_dir, ignore_errors=True)
-        except Exception as e:
-            logger.warning(f'清理临时文件失败: {e}')
-        
-        # 5. 使用 LLM 合并结果
-        logger.info(f'large-v3-results: {tmp_results}')
-        logger.info(f'qwen3-asr-flash-results: {qwen3_results}')
-        
-        # from core.llm import get_qwen_model
-        # import ast
-        # from core.prompts.mixed_model_prompt import system_prompt
-        # qwen_model = get_qwen_model()
-        # prompt = system_prompt.format(tmp_results=tmp_results, main_model_results=qwen3_results)
-        # logger.info(f'prompt: {prompt}')
-        # response = qwen_model.chat(
-        #     prompt=prompt,
-        #     enable_thinking=False
-        # )
-        
-        # return ast.literal_eval(response['response'])
+
+class ApiTranscriptionModel_V3(WhisperLargeV3Model,ApiTranscriptionModel_V2):
+    def __init__(self):
+        # 显式初始化第一个父类
+        WhisperLargeV3Model.__init__(self)
+        # 显式初始化第二个父类
+        ApiTranscriptionModel_V2.__init__(self)
+
+    def transcribe(self, audio_path: str) -> List[List[Any]]:
+        audio_data = self._load_audio(audio_path)
+        chunk_info_list = self._process_vad(audio_data)
+
+        results = self._transcribe_chunks_parallel(chunk_info_list)
+        qwen_result = ",".join([result[2] for result in results])
+        segments, _ = self.model.transcribe(
+            audio_path,
+            language="zh",
+            initial_prompt=qwen_result
+        )
+        return [[segment.text, segment.start, segment.end] for segment in segments]
+
+class ApiTranscriptionModel_V4(ApiTranscriptionModel_V2):
+    def __init__(self):
+        ApiTranscriptionModel_V2.__init__(self)
+
+    def transcribe(self,audio_path:str)->List[List[Any]]:
+        audio_data = self._load_audio(audio_path)
+        chunk_info_list = self._process_vad(audio_data)
+        results = self._transcribe_chunks_parallel(chunk_info_list)
+        qwen_result = ",".join([result[2] for result in results])
+        segments, _ = self.model.transcribe(
+            audio_path,
+            language="zh",
+            initial_prompt=qwen_result
+        )
 
 class LocalModelFactory:
     @staticmethod
@@ -521,7 +499,7 @@ class TranscriptionManager:
                 raise ValueError("本地模式必须指定model_name")
             self.transcriber = LocalModelFactory.create_model(config.model_name)
         elif isinstance(config, TranscriptionAPIModelConfig):
-            self.transcriber = ApiTranscriptionModel_V2()
+            self.transcriber = ApiTranscriptionModel_V3()
 
     def transcribe(self, audio_path: str) -> List[List[Any]]:
         """对外提供的转写接口，统一调用方式"""

@@ -9,3 +9,5 @@ Systran/
 FireRedTeam/
 FireRedASR/
 tmp/
+log/
+*.txt

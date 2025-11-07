@@ -10,7 +10,8 @@ from huggingface_hub import snapshot_download
 
 # model_1 = "FireRedTeam/FireRedASR-AED-L"
 # model_1 = "Qwen/Qwen2.5-14B-Instruct"
-model_1 = "Qwen/Qwen2.5-14B-Instruct-GPTQ-Int4"
+# model_1 = "Qwen/Qwen2.5-14B-Instruct-GPTQ-Int4"
+model_1 = 'iic/speech_timestamp_prediction-v1-16k-offline'
 # model_2 = 'Qwen/Qwen3-4B'
 # model_3 = "Systran/faster-whisper-large-v3"
 # model_list = [model_1, model_2, model_3]
@@ -24,8 +25,7 @@ for model_name in model_list:
         try:
             snapshot_download(
                 repo_id=model_name,
-                local_dir_use_symlinks=True,  # 使用链接文件节省空间
-                local_dir=model_name,         
+                local_dir_use_symlinks=True,  # 使用链接文件节省空间     
                 resume_download=True          # 支持断点续传
             )
             break  # 下载完成后退出循环
