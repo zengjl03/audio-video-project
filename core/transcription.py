@@ -504,3 +504,4 @@ class TranscriptionManager:
     def transcribe(self, audio_path: str) -> List[List[Any]]:
         """对外提供的转写接口，统一调用方式"""
         return self.transcriber.transcribe(audio_path)
+        

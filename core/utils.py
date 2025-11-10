@@ -4,6 +4,7 @@ from typing import Any, List, Literal
 from loguru import logger
 import time
 from functools import wraps
+from pathlib import Path
 
 def timer(func):
     """计算函数执行时间的装饰器"""
@@ -37,14 +38,21 @@ class TranscriptionAPIModelConfig:
     mode:str = "api"
 
 @dataclass
+class AnalyzerPromptConfig:
+    outline_prompt:Path
+    highlight_prompt:Path
+
+@dataclass
 class AnalyzerAPIModelConfig:
-    model_name:str
-    base_url:str
     api_key:str
+    base_url:str
+    model_name:str
+    prompt_config:AnalyzerPromptConfig
     mode:str = 'api'
 
 @dataclass
 class AnalyzerLocalModelConfig:
+    prompt_config:AnalyzerPromptConfig
     mode:str = 'local'
     model_name:Literal["qwen3-4b","qwen2.5-14b-instruct","qwen2.5-14b-instruct-gptq-int4"] = "qwen3-4b"
 
@@ -55,7 +63,5 @@ class Config:
     analyzer_config: AnalyzerAPIModelConfig | AnalyzerLocalModelConfig
     output_dir:str
 
-    # 并行配置
+    # extra配置
     segment_duration_minutes:int | None = None
-    max_workers:int | None = None
-    temp_dir:str | None = None

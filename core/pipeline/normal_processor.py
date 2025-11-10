@@ -16,7 +16,7 @@ class NormalProcessor(PipelineProcessor):
         self.video_path = Path(config.video_path)
         self.editor = EditorManager(self.video_path)
         self.transcriber = TranscriptionManager(config.transcription_config)
-        self.highlighter = AnalyzerManager(config.analyzer_config)
+        self.analyzer = AnalyzerManager(config.analyzer_config)
         self.output_dir = Path(config.output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -45,7 +45,7 @@ class NormalProcessor(PipelineProcessor):
         trans_text = ' '.join([f"[{start} - {end}] {text}\n" for text, start, end in segments])
 
         # 4. 大模型分析精彩片段
-        highlights = self.highlighter.analyze(trans_text)
+        highlights = self.analyzer.analyze(trans_text)
 
         logger.info(f"分析完成，获取到{len(highlights)}个精彩片段: {self.video_path}")
         if not highlights:
