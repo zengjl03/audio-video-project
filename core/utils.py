@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, List, Literal
+from typing import Any, Dict, List, Literal
 from loguru import logger
 import time
 from functools import wraps
@@ -18,9 +18,22 @@ def timer(func):
         return result
     return wrapper
 
+@dataclass
+class Segment:
+    text:str
+    start_time:float
+    end_time:float
+
+    def to_dict(self) -> Dict:
+        return {
+            "text": self.text,
+            "start_time": self.start_time,
+            "end_time": self.end_time
+        }
+
 class TranscriptionModel(ABC):
     @abstractmethod
-    def transcribe(self, audio_path: str) -> List[List[Any]]:
+    def transcribe(self, audio_path: str) -> List[Segment]:
         """
         转写音频文件
         :param audio_path: 音频文件路径
