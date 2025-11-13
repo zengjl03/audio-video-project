@@ -31,6 +31,18 @@ class Segment:
             "end_time": self.end_time
         }
 
+@dataclass
+class SegmentWithSpk(Segment):
+    spk_id:int
+
+    def to_dict(self) -> Dict:
+        return {
+            "text": self.text,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "spk_id": self.spk_id
+        }
+
 class TranscriptionModel(ABC):
     @abstractmethod
     def transcribe(self, audio_path: str) -> List[Segment]:

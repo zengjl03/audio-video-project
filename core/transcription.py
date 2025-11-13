@@ -17,7 +17,7 @@ import io
 import argparse
 import warnings
 warnings.filterwarnings("ignore")
-from core.utils import TranscriptionLocalModelConfig, TranscriptionAPIModelConfig, TranscriptionModel, Segment
+from core.utils import TranscriptionLocalModelConfig, TranscriptionAPIModelConfig, TranscriptionModel, Segment, SegmentWithSpk
 torch.serialization.add_safe_globals([argparse.Namespace])
 from loguru import logger
 
@@ -41,8 +41,7 @@ class ParaformerZhModel(TranscriptionModel):
     def transcribe(self, audio_path: str) -> List[Segment]:
         res = self.model.generate(input=audio_path, batch_size_s=1200, hotword='哈哈哈')[0]
         sentence_info = res['sentence_info']
-        return [Segment(text=seg['text'], start_time=seg['start'] / 1000, end_time=seg['end'] / 1000) for seg in sentence_info]
-
+        return [SegmentWithSpk(text=seg['text'], start_time=seg['start'] / 1000, end_time=seg['end'] / 1000, spk_id=seg['spk']) for seg in sentence_info]
 
 class WhisperLargeV3Model(TranscriptionModel):
     def __init__(self):
@@ -388,12 +387,14 @@ class ApiTranscriptionModel_V2(WhisperLargeV3Model,ApiTranscriptionModel):
         chunk_info_list = self._process_vad(audio_data)
 
         results = self._transcribe_chunks_parallel(chunk_info_list)
-        qwen_result = ",".join([result[2] for result in results])
+        qwen_result = ",".join([result.text for result in results])
         segments, _ = self.model.transcribe(
             audio_path,
             language="zh",
             initial_prompt=qwen_result
         )
+        import shutil
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
         return [Segment(text=seg.text, start_time=seg.start, end_time=seg.end) for seg in segments]
 
 class LocalModelFactory:

@@ -18,20 +18,55 @@ class ParallelProcessor(PipelineProcessor):
         self.segment_duration_minutes = int(config.segment_duration_minutes)
 
         self.happy_keywords = [
-            r"哈哈+",
-            r"嘿嘿+",
-            r"嘻嘻+",
-            r"呵呵+",
-            r"笑死",
-            r"笑疯了",
-            r"笑了",
-            r"好开心",
-            r"太开心了",
-            r"好幸福",
-            r"太幸福了",
-            r"好好玩",
-            r"太好玩了",
-        ]
+                # 原有关键词
+                r"哈哈+",
+                r"嘿嘿+",
+                r"嘻嘻+",
+                r"呵呵+",
+                r"笑死+",
+                r"好开心+",
+                r"太开心了+",
+                r"好幸福+",
+                r"太幸福了+",
+                r"好好玩+",
+                r"太好玩了+",
+                # 11.13补充
+                # 补充：核心夸赞（直接肯定孩子）
+                r"太棒了+",
+                r"太优秀了+",
+                r"真厉害+",
+                r"好棒呀+",
+                r"真了不起+",
+                r"太牛了+",
+                r"真乖+",
+                r"好聪明+",
+                r"太聪明了+",
+                r"真能干+",
+                r"太能干了+",
+                r"真出色+",
+                r"太出色了+",
+                r"真给力+",
+                r"太给力了+",
+                # 补充：惊喜感叹（情绪起伏大，带意外感）
+                r"哇+",
+                r"哇塞+",
+                r"天呐+",
+                r"我的天+",
+                r"太惊喜了+",
+                r"太意外了+",
+                r"居然这么棒+",
+                r"没想到这么厉害+",
+                r"太惊喜了+",
+                r"真让人惊喜+",
+                # 补充：骄傲自豪（家长主观情感强烈）
+                r"真为你骄傲+",
+                r"太为你自豪了+",
+                r"我的宝贝太厉害了+",
+                r"不愧是我的孩子+",
+                r"太争光了+",
+                r"真长脸+",
+                r"太让人骄傲了+",
+            ]
 
     def _filter_events_by_happy_keywords(self, events: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """按照欢乐关键词过滤events，返回(包含关键词的events, 不包含关键词的events)"""
@@ -39,7 +74,7 @@ class ParallelProcessor(PipelineProcessor):
         happy_events = []
         non_happy_events = []
         for event in events:
-            content = event.content
+            content = event.get('content', '')
             if happy_regex.search(content):
                 happy_events.append(event)
             else:
@@ -65,9 +100,6 @@ class ParallelProcessor(PipelineProcessor):
             logger.error("音频转写失败，终止处理")
             return
         
-        logger.info(f"转写完成，获取到 {len(segments)} 个片段")
-        # print('segments',segments)
-        
         # 1. 识别完整事件（包含时间戳）
         # 使用配置的分块时间间隔
         events: List[Dict[str, Any]] = self.extract_outline(segments, self.analyzer, segment_duration_minutes=self.segment_duration_minutes)
@@ -78,11 +110,13 @@ class ParallelProcessor(PipelineProcessor):
             return
 
         # 这里加一个插件，手动地实现这个哈哈大笑关键词的捕捉
-        happy_events, non_happy_events = self._filter_events_by_happy_keywords(events)
-        logger.info(f"包含欢乐关键词的事件数: {len(happy_events)}，不包含的事件数: {len(non_happy_events)}")
+        final_events,non_happy_events = [],events
 
-        final_events = []
-        final_events.extend(happy_events)
+        # happy_events, non_happy_events = self._filter_events_by_happy_keywords(events)
+        # logger.info(f"包含欢乐关键词的事件数: {len(happy_events)}，不包含的事件数: {len(non_happy_events)}")
+
+        # final_events = []
+        # final_events.extend(happy_events)
 
         if non_happy_events:
             # 2. 从事件列表中筛选出有趣的事件

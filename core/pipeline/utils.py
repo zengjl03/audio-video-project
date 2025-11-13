@@ -182,6 +182,7 @@ class OutlineExtractorMixin:
 
         # 使用智能分块将segments切分为多个块
         chunk_list = self._smart_chunk_segments(normalized_segments, segment_duration_minutes=segment_duration_minutes)
+
         if not chunk_list:
             logger.warning("未生成任何有效分块，终止后续分析")
             return []
@@ -248,9 +249,22 @@ class TimelineExtractorMixin:
             return []
 
         try:
+            # 去除不必要的时间信息，简化传递给大模型的事件结构
+            simplified_events = []
+            for event in events:
+                event_without_time = {
+                    key: value
+                    for key, value in event.items()
+                    if key not in {
+                        "start_time",
+                        "end_time"
+                    }
+                }
+                simplified_events.append(event_without_time)
+
             # 准备输入数据：将所有事件传递给analyzer进行筛选
             input_data = {
-                "events": events
+                "events": simplified_events
             }
 
             # 调用analyzer进行事件筛选
@@ -276,19 +290,14 @@ class TimelineExtractorMixin:
                     lines = response_text.split("\n")
                     response_text = "\n".join(lines[1:-1]) if len(lines) > 2 else response_text
                 
-                filtered_events = json.loads(response_text)
+                filtered_events = json.loads(response_text).get("output", [])
                 
-                # 确保返回的是列表
-                if isinstance(filtered_events, dict):
-                    # 如果返回的是字典，尝试提取output或events字段
-                    filtered_events = filtered_events.get("output", filtered_events.get("events", []))
-                
-                if not isinstance(filtered_events, list):
-                    logger.warning(f"解析后的响应不是列表格式: {type(filtered_events)}")
-                    filtered_events = []
-                
-                logger.info(f"成功筛选出 {len(filtered_events)} 个有趣事件")
-                return filtered_events
+                idx_results = [item.get("event_index") for item in filtered_events]
+
+                final_events = [events[idx] for idx in idx_results]
+
+                logger.info(f"成功筛选出 {len(final_events)} 个有趣事件")
+                return final_events
                 
             except json.JSONDecodeError as e:
                 logger.error(f"JSON解析错误: {e}")
