@@ -31,7 +31,13 @@ def setup_logger():
 
     return log_file
 
+def mkdir():
+    dirs = ['video', 'audio']
+    for dir in dirs:
+        if not Path(dir).exists():
+            Path(dir).mkdir(parents=True, exist_ok=True)
+
 def setup():
+    mkdir()
     log_file = setup_logger()
     logger.info(f"日志文件已保存至: {log_file}")
-    return log_file

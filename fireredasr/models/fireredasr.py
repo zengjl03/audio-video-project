@@ -107,7 +107,7 @@ class FireRedAsr:
 
 
 def load_fireredasr_aed_model(model_path):
-    package = torch.load(model_path, map_location=lambda storage, loc: storage)
+    package = torch.load(model_path,weights_only=False, map_location=lambda storage, loc: storage)
     print("model args:", package["args"])
     model = FireRedAsrAed.from_args(package["args"])
     model.load_state_dict(package["model_state_dict"], strict=True)

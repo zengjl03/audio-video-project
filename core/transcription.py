@@ -60,54 +60,38 @@ class WhisperLargeV3Model(TranscriptionModel):
         # logger.info(f'WhisperLargeV3Model transcribe segments: {list(segments)}')
         return [Segment(text=segment.text, start_time=segment.start, end_time=segment.end) for segment in segments]
 
-
+# 与ParaformerZhModel效果差不多，并且无法引入spk_id，暂时弃用
 class SenseVoiceSmallModel(TranscriptionModel):
     def __init__(self):
         self.model = AutoModel(
             model="iic/SenseVoiceSmall",
-            trust_remote_code=True,
             vad_model="fsmn-vad",
             vad_kwargs={"max_single_segment_time": 30000},
-            device="cuda:0"
+            device="cuda:0",
+            disable_update=True
         )
 
     def transcribe(self, audio_path: str) -> List[Segment]:
         res = self.model.generate(
             input=audio_path,
             cache={},
-            language="zn",
+            language="zh",
             use_itn=True,
             batch_size_s=60,
-            merge_vad=True,
-            merge_length_s=15,
+            merge_vad=False,
+            # merge_length_s=15,
             ban_emo_unk=True
         )
         text = rich_transcription_postprocess(res[0]["text"])
-        return [Segment(text=text, start_time=0.0, end_time=0.0)]
+        # print(text)
 
-# TODO FireRedASRModel 暂时没有调整到位
+# FireRedASRModel 经测试占用显存和时间都很大，暂时弃用
 class FireRedASRModel(TranscriptionModel):
     def __init__(self):
         from fireredasr.models.fireredasr import FireRedAsr
         self.model = FireRedAsr.from_pretrained("aed","FireRedTeam/FireRedASR-AED-L")
 
     def transcribe(self, audio_path: str) -> List[List[Any]]:
-        def transcribe_parallel(audio_path, tmp_manager, model, decode_params):
-            """并发执行两个转录任务"""
-            import concurrent.futures
-
-            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-                future1 = executor.submit(tmp_manager.transcribe, audio_path)
-                logger.info('fireredasr transcribe start')
-                future2 = executor.submit(model.transcribe, ['watrix'], [audio_path], decode_params)
-                logger.info('fireredasr transcribe end')
-                tmp_results = future1.result()
-                fireredasr_results = future2.result()
-            
-            return tmp_results, fireredasr_results
-
-        tmp_manager = TranscriptionManager(transcribe_mode="local", model_name="large-v3")
-
         decode_params = {
             "use_gpu": 1,
             "beam_size": 3,
@@ -122,21 +106,7 @@ class FireRedASRModel(TranscriptionModel):
             [audio_path],
             decode_params
         )
-
         print(results)
-
-        # logger.info('aaaaresult',results)
-        
-
-        # tmp_results, fireredasr_results = transcribe_parallel(audio_path, tmp_manager, self.model, decode_params)
-        # from core.llm import get_qwen_model
-        # import ast
-        # qwen_model = get_qwen_model()
-        # from core.prompts.mixed_model_prompt import system_prompt
-        # prompt = system_prompt.format(tmp_results=tmp_results, main_model_results=fireredasr_results)
-        # logger.info(f'prompt: {prompt}')
-        # response = qwen_model.chat(prompt=prompt,enable_thinking=False)
-        # return ast.literal_eval(response['response'])
 
 # 暂时弃用
 class ApiTranscriptionModel(TranscriptionModel):
@@ -386,13 +356,13 @@ class ApiTranscriptionModel_V2(WhisperLargeV3Model,ApiTranscriptionModel):
         audio_data = self._load_audio(audio_path)
         chunk_info_list = self._process_vad(audio_data)
 
-        results = self._transcribe_chunks_parallel(chunk_info_list)
-        qwen_result = ",".join([result.text for result in results])
-        segments, _ = self.model.transcribe(
-            audio_path,
-            language="zh",
-            initial_prompt=qwen_result
-        )
+        segments = self._transcribe_chunks_parallel(chunk_info_list)
+        # qwen_result = ",".join([result.text for result in results])
+        # segments, _ = self.model.transcribe(
+        #     audio_path,
+        #     language="zh",
+        #     initial_prompt=qwen_result
+        # )
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
         return [Segment(text=seg.text, start_time=seg.start, end_time=seg.end) for seg in segments]
