@@ -15,9 +15,9 @@ if __name__ == "__main__":
     # model_name = 'gpt-4.1-nano-2025-04-14'
 
     config = Config(
-        video_path="video/testtutu.mp4",
-        transcription_config=TranscriptionLocalModelConfig(model_name="paraformer-zh"),
-        # transcription_config=TranscriptionAPIModelConfig(),
+        video_path="video/673a2bb90697174018ba6c2952bd3f4e.mp4",
+        # transcription_config=TranscriptionLocalModelConfig(model_name="paraformer-zh"),
+        transcription_config=TranscriptionAPIModelConfig(),
         analyzer_config=AnalyzerAPIModelConfig(
             model_name="gpt-4o-mini",
             base_url=os.getenv("BASE_URL"),
