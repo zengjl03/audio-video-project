@@ -112,18 +112,29 @@ class ParallelProcessor(PipelineProcessor):
             return
 
         # 这里加一个插件，手动地实现这个哈哈大笑关键词的捕捉
-        final_events,non_happy_events = [],events
+        # final_events,non_happy_events = [],events
 
-        # happy_events, non_happy_events = self._filter_events_by_happy_keywords(events)
-        # logger.info(f"包含欢乐关键词的事件数: {len(happy_events)}，不包含的事件数: {len(non_happy_events)}")
+        happy_events, non_happy_events = self._filter_events_by_happy_keywords(events)
+        logger.info(f"包含欢乐关键词的事件数: {len(happy_events)}，不包含的事件数: {len(non_happy_events)}")
 
-        # final_events = []
-        # final_events.extend(happy_events)
+        final_events = []
+        final_events.extend(happy_events)
 
         if non_happy_events:
             # 2. 从事件列表中筛选出有趣的事件
             highlight_events = self.extract_timeline(non_happy_events, self.analyzer)
             final_events.extend(highlight_events)
+        
+        final_events = sorted(final_events, key=lambda x: x.get('start_time'))
+
+        # import csv
+        # with open('final_events.csv', 'a', newline='', encoding='utf-8') as f:
+        #     writer = csv.writer(f)
+        #     if final_events:
+        #         for event in final_events:
+        #             writer.writerow([self.video_path.stem, event.get('start_time'), event.get('end_time')])
+        #     else:
+        #         writer.writerow([self.video_path.stem, 'None', 'None'])
 
         # 5. 保存精彩片段
         for idx, clip in enumerate(final_events, 1):

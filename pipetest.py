@@ -8,15 +8,15 @@ load_dotenv()
 
 if __name__ == "__main__":
     from init import setup
-    for i in range(21,40+1):
+    for i in range(31,40+1):
         video_path = f"video/boring/test{i}.mp4"
         setup(video_path)
         config = Config(
             video_path=video_path,
-            transcription_config=TranscriptionLocalModelConfig(model_name="paraformer-zh"),
-            # transcription_config=TranscriptionAPIModelConfig(),
+            # transcription_config=TranscriptionLocalModelConfig(model_name="paraformer-zh"),
+            transcription_config=TranscriptionAPIModelConfig(),
             analyzer_config=AnalyzerAPIModelConfig(
-                model_name="gpt-4o-mini",
+                model_name="gpt-5",
                 base_url=os.getenv("BASE_URL"),
                 api_key=os.getenv("API_KEY"),
                 prompt_config=AnalyzerPromptConfig(

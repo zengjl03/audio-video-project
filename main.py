@@ -9,10 +9,10 @@ load_dotenv()
 if __name__ == "__main__":
     from init import setup
     # 初始化
-    video_path = "video/test20.mp4"
+    video_path = "video/test61.mp4"
     setup(video_path)
 
-    model_name = 'gpt-4.1-nano-2025-04-14'
+    model_name = 'gpt-5'
 
     config = Config(
         video_path=video_path,

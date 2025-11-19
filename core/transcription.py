@@ -348,7 +348,7 @@ class ApiTranscriptionModel(TranscriptionModel):
 class ApiTranscriptionModel_V2(WhisperLargeV3Model,ApiTranscriptionModel):
     def __init__(self):
         # 显式初始化第一个父类
-        WhisperLargeV3Model.__init__(self)
+        # WhisperLargeV3Model.__init__(self)
         # 显式初始化第二个父类
         ApiTranscriptionModel.__init__(self)
 
@@ -356,7 +356,7 @@ class ApiTranscriptionModel_V2(WhisperLargeV3Model,ApiTranscriptionModel):
         audio_data = self._load_audio(audio_path)
         chunk_info_list = self._process_vad(audio_data)
 
-        results = self._transcribe_chunks_parallel(chunk_info_list)
+        segments = self._transcribe_chunks_parallel(chunk_info_list)
         # print('qwen_result: ', qwen_result)
         # segments, _ = self.model.transcribe(
         #     audio_path,
@@ -366,7 +366,7 @@ class ApiTranscriptionModel_V2(WhisperLargeV3Model,ApiTranscriptionModel):
         # print('segments: ', [Segment(text=seg.text, start_time=seg.start, end_time=seg.end) for seg in segments])
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
-        return [Segment(text=seg.text, start_time=seg.start_time, end_time=seg.end_time) for seg in results]
+        return [Segment(text=seg.text, start_time=seg.start_time, end_time=seg.end_time) for seg in segments]
 
 class LocalModelFactory:
     @staticmethod
