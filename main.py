@@ -9,17 +9,17 @@ load_dotenv()
 if __name__ == "__main__":
     from init import setup
     # 初始化
-    setup()
-    # 并行处理存在视频裁剪问题
+    video_path = "video/test20.mp4"
+    setup(video_path)
 
-    # model_name = 'gpt-4.1-nano-2025-04-14'
+    model_name = 'gpt-4.1-nano-2025-04-14'
 
     config = Config(
-        video_path="video/test1.mp4",
-        transcription_config=TranscriptionLocalModelConfig(model_name="paraformer-zh"),
-        # transcription_config=TranscriptionAPIModelConfig(),
+        video_path=video_path,
+        # transcription_config=TranscriptionLocalModelConfig(model_name="paraformer-zh"),
+        transcription_config=TranscriptionAPIModelConfig(),
         analyzer_config=AnalyzerAPIModelConfig(
-            model_name="gpt-4o-mini",
+            model_name=model_name,
             base_url=os.getenv("BASE_URL"),
             api_key=os.getenv("API_KEY"),
             prompt_config=AnalyzerPromptConfig(

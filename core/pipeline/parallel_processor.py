@@ -99,6 +99,8 @@ class ParallelProcessor(PipelineProcessor):
         if not segments:
             logger.error("音频转写失败，终止处理")
             return
+
+        logger.info(f"转写结果: {segments}")
         
         # 1. 识别完整事件（包含时间戳）
         # 使用配置的分块时间间隔
@@ -110,13 +112,13 @@ class ParallelProcessor(PipelineProcessor):
             return
 
         # 这里加一个插件，手动地实现这个哈哈大笑关键词的捕捉
-        # final_events,non_happy_events = [],events
+        final_events,non_happy_events = [],events
 
-        happy_events, non_happy_events = self._filter_events_by_happy_keywords(events)
-        logger.info(f"包含欢乐关键词的事件数: {len(happy_events)}，不包含的事件数: {len(non_happy_events)}")
+        # happy_events, non_happy_events = self._filter_events_by_happy_keywords(events)
+        # logger.info(f"包含欢乐关键词的事件数: {len(happy_events)}，不包含的事件数: {len(non_happy_events)}")
 
-        final_events = []
-        final_events.extend(happy_events)
+        # final_events = []
+        # final_events.extend(happy_events)
 
         if non_happy_events:
             # 2. 从事件列表中筛选出有趣的事件

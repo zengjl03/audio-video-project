@@ -39,7 +39,7 @@ class ParaformerZhModel(TranscriptionModel):
         )
 
     def transcribe(self, audio_path: str) -> List[Segment]:
-        res = self.model.generate(input=audio_path, batch_size_s=1200, hotword='哈哈哈')[0]
+        res = self.model.generate(input=audio_path, batch_size_s=600, hotword='哈哈哈')[0]
         sentence_info = res['sentence_info']
         return [SegmentWithSpk(text=seg['text'], start_time=seg['start'] / 1000, end_time=seg['end'] / 1000, spk_id=seg['spk']) for seg in sentence_info]
 
@@ -356,16 +356,17 @@ class ApiTranscriptionModel_V2(WhisperLargeV3Model,ApiTranscriptionModel):
         audio_data = self._load_audio(audio_path)
         chunk_info_list = self._process_vad(audio_data)
 
-        segments = self._transcribe_chunks_parallel(chunk_info_list)
-        # qwen_result = ",".join([result.text for result in results])
+        results = self._transcribe_chunks_parallel(chunk_info_list)
+        # print('qwen_result: ', qwen_result)
         # segments, _ = self.model.transcribe(
         #     audio_path,
         #     language="zh",
-        #     initial_prompt=qwen_result
+        #     # initial_prompt=qwen_result
         # )
+        # print('segments: ', [Segment(text=seg.text, start_time=seg.start, end_time=seg.end) for seg in segments])
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
-        return [Segment(text=seg.text, start_time=seg.start, end_time=seg.end) for seg in segments]
+        return [Segment(text=seg.text, start_time=seg.start_time, end_time=seg.end_time) for seg in results]
 
 class LocalModelFactory:
     @staticmethod

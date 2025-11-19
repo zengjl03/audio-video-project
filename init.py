@@ -2,16 +2,20 @@ import os
 from dotenv import load_dotenv
 from loguru import logger
 from pathlib import Path
+from typing import Union
 load_dotenv()
-import time
 
-def setup_logger():
+def setup_logger(video_path: Union[str, Path]):
     # 日志文件路径：默认 log/pipeline.log，支持环境变量 LOG_DIR
     log_dir = Path(os.getenv("LOG_DIR", "log"))
     log_prefix = os.getenv("LOG_PREFIX", "pipeline")
-    log_file = log_dir / f"{log_prefix}_{time.strftime('%Y%m%d_%H%M%S')}.log"
-    os.makedirs(os.path.dirname(log_file), exist_ok=True)
-    
+    video_stem = Path(video_path).stem
+    log_file = log_dir / f"{log_prefix}_{video_stem}.log"
+    os.makedirs(log_file.parent, exist_ok=True)
+
+    # 重置 logger，避免重复添加 sink
+    logger.remove()
+
     # 配置 loguru：输出到文件 + 控制台，自动轮转
     logger.add(
         log_file,  # 日志文件路径
@@ -22,7 +26,6 @@ def setup_logger():
         encoding="utf-8"  # 编码
     )
     # 控制台输出（默认已开启，这里可自定义格式）
-    logger.remove(0)  # 移除默认控制台输出（可选）
     logger.add(
         sink=lambda msg: print(msg, end=""),  # 自定义控制台输出
         level="INFO",
@@ -37,7 +40,7 @@ def mkdir():
         if not Path(dir).exists():
             Path(dir).mkdir(parents=True, exist_ok=True)
 
-def setup():
+def setup(video_path: Union[str, Path]):
     mkdir()
-    log_file = setup_logger()
+    log_file = setup_logger(video_path)
     logger.info(f"日志文件已保存至: {log_file}")
