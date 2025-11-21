@@ -64,7 +64,7 @@ class AnalyzerManager:
         )
         # 提取并清洗响应内容（关键改进点）
         raw_content = response.choices[0].message.content.strip()
-        logger.info(f'llm analyze response: {raw_content}')
+        # logger.info(f'llm analyze response: {raw_content}')
         return raw_content
 
     def _analyze_llm(self, text, mode:Literal["outline","highlight"] = "highlight"):
@@ -73,5 +73,5 @@ class AnalyzerManager:
 
         qwen_model = get_qwen_model(self.config.model_name)
         content = qwen_model.chat(prompt)
-        logger.info(f'llm analyze response: {content.get("response")}')
+        # logger.info(f'llm analyze response: {content.get("response")}')
         return content

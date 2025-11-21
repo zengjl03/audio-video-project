@@ -83,7 +83,6 @@ class AnalyzerLocalModelConfig:
 
 @dataclass
 class Config:
-    video_path:str
     transcription_config: TranscriptionLocalModelConfig | TranscriptionAPIModelConfig
     analyzer_config: AnalyzerAPIModelConfig | AnalyzerLocalModelConfig
     output_dir:str

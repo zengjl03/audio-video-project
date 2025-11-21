@@ -1,8 +1,10 @@
+from pathlib import Path
 from typing import List, Dict, Any, Tuple
 from loguru import logger
 from dotenv import load_dotenv
 from core.pipeline.base import PipelineProcessor
 from core.utils import Config, timer,Segment
+from core.extract import EditorManager
 import re
 
 
@@ -82,7 +84,10 @@ class ParallelProcessor(PipelineProcessor):
         return happy_events, non_happy_events
     
     @timer
-    def process(self):
+    def process(self, video_path: Path) -> Tuple[List[str], List[str]]:
+        self.video_path = video_path    
+        self.editor = EditorManager(self.video_path)
+        self.video_path = video_path
         # 检查
         if not self.check_video(self.video_path):
             return
@@ -136,12 +141,20 @@ class ParallelProcessor(PipelineProcessor):
         #     else:
         #         writer.writerow([self.video_path.stem, 'None', 'None'])
 
+        names,descs = [],[]
+
         # 5. 保存精彩片段
         for idx, clip in enumerate(final_events, 1):
             outname = f"clip_{self.video_path.stem}_{idx:02d}.mp4"
             outpath = self.output_dir / outname
             self.editor.crop_video(outpath, clip.get('start_time'), clip.get('end_time'))
             logger.info(f"已保存精彩片段: {outpath} --> {clip.get('end_time') - clip.get('start_time')} 秒")
+
+            names.append(outname)
+            descs.append(clip.get('title'))
+
+        return names,descs
+            
 
 
 

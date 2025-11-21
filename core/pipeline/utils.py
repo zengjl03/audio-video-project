@@ -205,26 +205,20 @@ class OutlineExtractorMixin:
             input_data = {
                 "segments": chunk_segments
             }
-
-            try:
-                # 调用analyzer进行事件识别
-                logger.info(f"正在分析第 {i+1} 个块，包含 {len(chunk_segments)} 个转录片段...")
-                response = analyzer.analyze(input_data, mode="outline")
-                
-                if not response:
-                    logger.warning(f"处理第 {i+1} 个块时返回空响应")
-                    continue
-                
-                # 解析响应，获取事件列表
-                chunk_events = self._parse_outline_response(response)
-                logger.info(f"第 {i+1} 个块识别出 {len(chunk_events)} 个事件")
-                all_events.extend(chunk_events)
-                
-            except Exception as e:
-                logger.error(f"处理第 {i+1} 个块时出错: {str(e)}")
-                import traceback
-                logger.error(traceback.format_exc())
+            
+            # 调用analyzer进行事件识别
+            logger.info(f"正在分析第 {i+1} 个块，包含 {len(chunk_segments)} 个转录片段...")
+            response = analyzer.analyze(input_data, mode="outline")
+            
+            if not response:
+                logger.warning(f"处理第 {i+1} 个块时返回空响应")
                 continue
+            
+            # 解析响应，获取事件列表
+            chunk_events = self._parse_outline_response(response)
+            logger.info(f"第 {i+1} 个块识别出 {len(chunk_events)} 个事件")
+            all_events.extend(chunk_events)
+
 
         logger.info(f"事件识别完成，共识别出 {len(all_events)} 个完整事件")
         return all_events
