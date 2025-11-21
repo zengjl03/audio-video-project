@@ -11,3 +11,4 @@ FireRedASR/
 tmp/
 log/
 final_events.csv
+cut_selected_videos.py

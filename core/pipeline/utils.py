@@ -1,5 +1,6 @@
 from typing import List, Dict,Any
 from loguru import logger
+from tqdm import tqdm
 import json
 
 class OutlineExtractorMixin:
@@ -248,64 +249,39 @@ class TimelineExtractorMixin:
             logger.warning("事件列表为空，无法进行筛选")
             return []
 
-        try:
-            # 去除不必要的时间信息，简化传递给大模型的事件结构
-            simplified_events = []
-            for event in events:
-                event_without_time = {
-                    key: value
-                    for key, value in event.items()
-                    if key not in {
-                        "start_time",
-                        "end_time"
-                    }
-                }
-                simplified_events.append(event_without_time)
+        final_events: List[Dict] = []
 
-            # 准备输入数据：将所有事件传递给analyzer进行筛选
-            input_data = {
-                "events": simplified_events
+        for idx, event in enumerate(tqdm(events, desc="筛选事件", unit="件"), start=1):
+            event_without_time = {
+                key: value
+                for key, value in event.items()
+                if key not in {"start_time", "end_time"}
             }
 
-            # 调用analyzer进行事件筛选
-            logger.info(f"正在筛选 {len(events)} 个事件...")
+            input_data = {"events": [event_without_time]}
+
             raw_response = analyzer.analyze(input_data, mode='highlight')
-            
-            # 解析响应
+
             if isinstance(raw_response, dict):
-                # 如果是字典格式，尝试提取response字段
                 response_text = raw_response.get("response", raw_response.get("content", ""))
             else:
                 response_text = raw_response
 
-            # 尝试解析JSON响应
-            try:
-                # 清理响应文本，移除可能的markdown代码块标记
-                response_text = response_text.strip()
-                if response_text.startswith("```"):
-                    # 移除markdown代码块标记
-                    lines = response_text.split("\n")
-                    response_text = "\n".join(lines[1:-1]) if len(lines) > 2 else response_text
-                elif response_text.startswith("```json"):
-                    lines = response_text.split("\n")
-                    response_text = "\n".join(lines[1:-1]) if len(lines) > 2 else response_text
-                
-                filtered_events = json.loads(response_text).get("output", [])
-                
-                idx_results = [item.get("event_index") for item in filtered_events]
+            response_text = response_text.strip()
+            if response_text.startswith("```"):
+                lines = response_text.split("\n")
+                response_text = "\n".join(lines[1:-1]) if len(lines) > 2 else response_text
+            elif response_text.startswith("```json"):
+                lines = response_text.split("\n")
+                response_text = "\n".join(lines[1:-1]) if len(lines) > 2 else response_text
 
-                final_events = [events[idx] for idx in idx_results]
+            output_items = json.loads(response_text).get("output", [])
 
-                logger.info(f"成功筛选出 {len(final_events)} 个有趣事件")
-                return final_events
-                
-            except json.JSONDecodeError as e:
-                logger.error(f"JSON解析错误: {e}")
-                logger.error(f"响应内容: {response_text[:500]}")  # 只打印前500个字符
-                return []
-                
-        except Exception as e:
-            logger.error(f"处理事件筛选时出错: {str(e)}")
-            import traceback
-            logger.error(traceback.format_exc())
-            return []
+            # 由于每次只传递一个事件，命中项的 event_index 应为 0
+            has_hit = any(item.get("event_index") == 0 for item in output_items)
+
+            if has_hit:
+                final_events.append(event)
+
+        logger.info(f"成功筛选出 {len(final_events)} 个有趣事件")
+        return final_events

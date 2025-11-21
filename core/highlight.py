@@ -1,4 +1,5 @@
 import os
+import time
 from dotenv import load_dotenv
 load_dotenv()
 from loguru import logger
@@ -9,12 +10,24 @@ import json
 class AnalyzerManager:
     def __init__(self, config: AnalyzerAPIModelConfig | AnalyzerLocalModelConfig):
         self.config = config
+        self.max_retries = 3
 
     def analyze(self, text, mode:Literal["outline","highlight"] = "highlight"):
-        if isinstance(self.config, AnalyzerAPIModelConfig):
-            return self._analyze_api(text, mode)
-        elif isinstance(self.config, AnalyzerLocalModelConfig):
-            return self._analyze_llm(text, mode)
+        last_error = None
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                if isinstance(self.config, AnalyzerAPIModelConfig):
+                    return self._analyze_api(text, mode)
+                elif isinstance(self.config, AnalyzerLocalModelConfig):
+                    return self._analyze_llm(text, mode)
+            except Exception as exc:
+                last_error = exc
+                logger.exception(
+                    f"analyze 第 {attempt} 次尝试失败，剩余重试次数 {self.max_retries - attempt}"
+                )
+                if attempt < self.max_retries:
+                    time.sleep(0.5)
+        raise last_error
 
     def _build_full_input(self, text, mode:Literal["outline","highlight"] = "highlight"):
         if mode == "outline":
