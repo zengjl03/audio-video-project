@@ -111,6 +111,7 @@ class ParallelProcessor(PipelineProcessor):
         # 使用配置的分块时间间隔
         events: List[Dict[str, Any]] = self.extract_outline(segments, self.analyzer, segment_duration_minutes=self.segment_duration_minutes)
         logger.info(f'识别出 {len(events)} 个完整事件')
+        logger.info(f'events: {events}')
         
         if not events:
             logger.warning("未识别出任何事件，终止后续处理")

@@ -8,12 +8,8 @@ from funasr.utils.postprocess_utils import rich_transcription_postprocess
 from dotenv import load_dotenv
 from pathlib import Path
 import dashscope
-from silero_vad import load_silero_vad, get_speech_timestamps
-import librosa
-import numpy as np
+from pydub import AudioSegment
 import soundfile as sf
-import subprocess
-import io
 import argparse
 import warnings
 warnings.filterwarnings("ignore")
@@ -117,168 +113,32 @@ class ApiTranscriptionModel(TranscriptionModel):
             raise ValueError("必须设置 DASHSCOPE_API_KEY 环境变量或通过 api_key 参数传入")
         
         self.num_threads = int(os.getenv("NUM_THREADS", 4))  # 添加默认值，避免KeyError
-        self.segment_threshold = int(os.getenv("SEGMENT_THRESHOLD", 120))
-        self.max_segment_threshold = int(os.getenv("MAX_SEGMENT_THRESHOLD", 180))
-
-        self.min_silence_length = int(os.getenv("MIN_SILENCE_LEN", 500))  # 修正为length
-        self.min_speech_length = int(os.getenv("MIN_SPEECH_LEN", 1500))
         self.temp_dir = Path(os.getenv("TMP_DIR") or str(Path.home() / "qwen3-asr-cache"))  # 修正为temp_dir
         self.temp_dir.mkdir(exist_ok=True)  # 创建临时目录
         
-        # 加载Silero VAD模型
-        self.vad_model = load_silero_vad()
-
-    def _load_audio(self, file_path: str) -> np.ndarray:
-        """加载音频文件，转为16kHz单声道"""
-        try:
-            if file_path.startswith(("http://", "https://")):
-                raise ValueError("远程文件暂不支持，如需支持可扩展ffmpeg命令")
-            
-            # 优先用librosa加载（速度快）
-            audio_data, _ = librosa.load(file_path, sr=WAV_SAMPLE_RATE, mono=True)
-            return audio_data
         
-        except Exception as e:
-            print(f"librosa加载失败，使用ffmpeg备份方案：{e}")
-            # ffmpeg备份方案：支持更多格式
-            command = [
-                'ffmpeg',
-                '-i', file_path,
-                '-ar', str(WAV_SAMPLE_RATE),
-                '-ac', '1',  # 单声道
-                '-c:a', 'pcm_s16le',
-                '-f', 'wav',
-                '-'  # 输出到标准输出
-            ]
-            
-            process = subprocess.Popen(
-                command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                shell=False
-            )
-            stdout_data, stderr_data = process.communicate()
-            
-            if process.returncode != 0:
-                raise RuntimeError(f"ffmpeg处理失败：{stderr_data.decode('utf-8', errors='ignore')}")
-            
-            # 读取ffmpeg输出的音频数据
-            with io.BytesIO(stdout_data) as data_io:
-                audio_data, _ = sf.read(data_io, dtype='float32')
-            
-            return audio_data
+    def _process_vad(self, audio: str) -> List[Tuple[str, float, float]]:
+        
+        vad_model = AutoModel(model="fsmn-vad", model_revision="v2.0.4",disable_update=True) 
+        vad_result = vad_model.generate(input=audio)[0].get('value',[])
+        # 提取音频片段
+        audio_s = AudioSegment.from_file(audio)
+        # 4. 生成最终片段（保存为wav文件，计算时间戳）
+        chunk_info_list = []
+        for start,end in vad_result:
+            audio_segment = audio_s[start:end]
+            # 计算时间戳（秒）
+            start_time = start / 1000
+            end_time = end / 1000
 
-    def _process_vad(self, audio: np.ndarray) -> list[tuple[str, float, float]]:
-        """基于Silero VAD拆分音频，返回[(片段路径, 起始时间秒, 结束时间秒), ...]"""
-        try:
-            # Silero VAD参数配置
-            vad_params = {
-                'sampling_rate': WAV_SAMPLE_RATE,
-                'return_seconds': False,  # 返回采样点索引
-                'min_speech_duration_ms': self.min_speech_length,  # 最小语音片段（1.5秒）
-                'min_silence_duration_ms': self.min_silence_length  # 从配置读取最小静音时长
-            }
+            # 保存片段到临时目录
+            temp_file_path = self.temp_dir / f"chunk_{start_time:.2f}_{end_time:.2f}.wav"
+            audio_segment.export(temp_file_path, format="wav")  # 可根据需要改为 "mp3" 等格式
+            # 记录片段信息
+            chunk_info_list.append((str(temp_file_path), round(start_time, 2), round(end_time, 2)))
 
-            # 检测语音片段时间戳
-            speech_timestamps = get_speech_timestamps(
-                audio,
-                self.vad_model,
-                **vad_params
-            )
-            
-            if not speech_timestamps:
-                raise ValueError("VAD未检测到语音片段")
-
-            # 1. 收集潜在拆分点（语音片段的起始/结束位置）
-            potential_split_points = {0, len(audio)}  # 采样点索引
-            for timestamp in speech_timestamps:
-                potential_split_points.add(timestamp['start'])
-                potential_split_points.add(timestamp['end'])
-            
-            sorted_potential_splits = sorted(potential_split_points)
-
-            # 2. 按目标时长添加拆分点（避免片段过长）
-            final_split_points = {0, len(audio)}
-            segment_threshold_samples = self.segment_threshold * WAV_SAMPLE_RATE  # 目标时长（采样点）
-            target_time = segment_threshold_samples
-            
-            while target_time < len(audio):
-                # 找最接近目标时长的潜在拆分点（避免切断语音）
-                closest_point = min(
-                    sorted_potential_splits,
-                    key=lambda p: abs(p - target_time)
-                )
-                final_split_points.add(closest_point)
-                target_time += segment_threshold_samples
-            
-            final_ordered_splits = sorted(final_split_points)
-
-            # 3. 确保片段不超过最大时长限制（强制拆分超长片段）
-            new_split_points = [0]
-            max_segment_samples = self.max_segment_threshold * WAV_SAMPLE_RATE  # 最大时长（采样点）
-            
-            for i in range(1, len(final_ordered_splits)):
-                start_sample = final_ordered_splits[i-1]
-                end_sample = final_ordered_splits[i]
-                segment_length = end_sample - start_sample
-
-                if segment_length <= max_segment_samples:
-                    new_split_points.append(end_sample)
-                else:
-                    # 超长片段：平均拆分
-                    num_subsegments = int(np.ceil(segment_length / max_segment_samples))
-                    subsegment_length = segment_length // num_subsegments
-                    
-                    for j in range(1, num_subsegments):
-                        new_split_points.append(start_sample + j * subsegment_length)
-                    
-                    new_split_points.append(end_sample)
-
-            # 4. 生成最终片段（保存为wav文件，计算时间戳）
-            chunk_info_list = []
-            for i in range(len(new_split_points) - 1):
-                start_sample = new_split_points[i]
-                end_sample = new_split_points[i+1]
-                
-                # 提取音频片段
-                audio_segment = audio[start_sample:end_sample]
-                if len(audio_segment) == 0:
-                    continue
-                
-                # 计算时间戳（秒）
-                start_time = start_sample / WAV_SAMPLE_RATE
-                end_time = end_sample / WAV_SAMPLE_RATE
-                
-                # 保存片段到临时目录
-                temp_file_path = self.temp_dir / f"chunk_{start_time:.2f}_{end_time:.2f}.wav"
-                sf.write(str(temp_file_path), audio_segment, WAV_SAMPLE_RATE)
-                
-                # 记录片段信息
-                chunk_info_list.append((str(temp_file_path), round(start_time, 2), round(end_time, 2)))
-
-            print(f"Silero VAD拆分完成：共 {len(chunk_info_list)} 段，总时长 {len(audio)/WAV_SAMPLE_RATE:.2f} 秒")
-            return chunk_info_list
-
-        except Exception as e:
-            print(f"VAD分段失败，使用备用方案（按最大时长强制拆分）：{e}")
-            # 备用方案：不依赖VAD，直接按最大时长拆分
-            chunk_info_list = []
-            total_samples = len(audio)
-            max_chunk_samples = self.max_segment_threshold * WAV_SAMPLE_RATE
-            
-            for start_sample in range(0, total_samples, max_chunk_samples):
-                end_sample = min(start_sample + max_chunk_samples, total_samples)
-                audio_segment = audio[start_sample:end_sample]
-                
-                start_time = start_sample / WAV_SAMPLE_RATE
-                end_time = end_sample / WAV_SAMPLE_RATE
-                
-                temp_file_path = self.temp_dir / f"chunk_{start_time:.2f}_{end_time:.2f}.wav"
-                sf.write(str(temp_file_path), audio_segment, WAV_SAMPLE_RATE)
-                
-                chunk_info_list.append((str(temp_file_path), round(start_time, 2), round(end_time, 2)))
-            
-            return chunk_info_list
+        print(f"VAD拆分完成：共 {len(chunk_info_list)} 段，总时长 {len(audio)/WAV_SAMPLE_RATE:.2f} 秒")
+        return chunk_info_list
 
     def _transcribe_single_chunk(self, chunk_info: Tuple[str, float, float]) -> Segment:
         """转录单个音频片段，返回(起始时间, 结束时间, 转录文本)"""
@@ -353,9 +213,8 @@ class ApiTranscriptionModel_V2(WhisperLargeV3Model,ApiTranscriptionModel):
         ApiTranscriptionModel.__init__(self)
 
     def transcribe(self, audio_path: str) -> List[Segment]:
-        audio_data = self._load_audio(audio_path)
-        chunk_info_list = self._process_vad(audio_data)
-
+        chunk_info_list = self._process_vad(audio_path)
+        print(chunk_info_list)
         segments = self._transcribe_chunks_parallel(chunk_info_list)
         # print('qwen_result: ', qwen_result)
         # segments, _ = self.model.transcribe(

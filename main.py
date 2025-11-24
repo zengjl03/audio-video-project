@@ -9,7 +9,7 @@ load_dotenv()
 if __name__ == "__main__":
     from init import setup
     # 初始化
-    video_path = Path("processed/clip_test27_02.mp4")
+    video_path = Path("video/test1.mp4")
     setup(video_path)
 
     config = Config(
