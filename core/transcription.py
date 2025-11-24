@@ -364,8 +364,11 @@ class ApiTranscriptionModel_V2(WhisperLargeV3Model,ApiTranscriptionModel):
         #     # initial_prompt=qwen_result
         # )
         # print('segments: ', [Segment(text=seg.text, start_time=seg.start, end_time=seg.end) for seg in segments])
-        import shutil
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
+        # import shutil
+        # shutil.rmtree(self.temp_dir, ignore_errors=True)
+        for it in chunk_info_list:
+            path,_,_ = it
+            Path(path).unlink(missing_ok=False)
         return [Segment(text=seg.text, start_time=seg.start_time, end_time=seg.end_time) for seg in segments]
 
 class LocalModelFactory:
