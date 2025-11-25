@@ -1,7 +1,15 @@
-from typing import List, Dict,Any
+from typing import List, Dict,Any, Tuple
 from loguru import logger
 from tqdm import tqdm
 import json
+import os
+import base64
+from io import BytesIO
+from pydub import AudioSegment
+from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class OutlineExtractorMixin:
     def __init__(self):
@@ -225,7 +233,7 @@ class OutlineExtractorMixin:
     
 
 
-class TimelineExtractorMixin:
+class HighlightExtractorMixin:
     def __init__(self):
         pass
 
@@ -274,9 +282,147 @@ class TimelineExtractorMixin:
             # 由于每次只传递一个事件，命中项的 event_index 应为 0
             for item in output_items:
                 if item.get('event_index') == 0:
-                    print(f'event_llm_happy:{event}')
-                    print(f'reason:{item.get("reason")}')
+                    event['llm_reason'] = item.get("reason",'')
                     final_events.append(event)
 
         logger.info(f"成功筛选出 {len(final_events)} 个有趣事件")
         return final_events
+
+class OmniAudioUnderstandingMixin:
+    _prompt = (
+        "请判断音频中是否出现明显的搞笑、幽默或令人开心的情绪，"
+        "只有当笑声或夸张语气很明显时才算有趣。"
+        "请输出 JSON：{\"emotion\": \"\", \"reason\": \"\"}，emotion 只能是“有趣”或“无明显有趣”。"
+    )
+    _chunk_seconds = 20
+    _base64_limit = 20_000_000
+    _model_name = "qwen3-omni-flash"
+
+    def omni_audio_understanding(self, events: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
+        if not events:
+            return [], []
+
+        client = self._get_omni_client()
+        audio = self._get_full_audio()
+        if client is None or audio is None:
+            return events, []
+
+        passed, rejected = [], []
+        for event in events:
+            start, end = self._get_event_range(event)
+            if start is None:
+                rejected.append(event)
+                continue
+
+            is_funny = False
+            for chunk in self._iter_chunks(audio, start, end):
+                payload = self._call_omni(client, chunk)
+                print(f'payload: {payload}')
+                if not payload:
+                    continue
+                if payload.get("emotion") == "有趣":
+                    event["omni_reason"] = payload.get("reason", "")
+                    is_funny = True
+                    break
+
+            (passed if is_funny else rejected).append(event)
+
+        return rejected, passed
+
+    def _get_omni_client(self):
+        if hasattr(self, "_omni_client"):
+            return self._omni_client
+
+        api_key = os.getenv("DASHSCOPE_API_KEY")
+        if not api_key:
+            logger.warning("缺少 DASHSCOPE_API_KEY 无法 omni 过滤")
+            self._omni_client = None
+            return None
+
+        self._omni_client = OpenAI(
+            api_key=api_key,
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        )
+        return self._omni_client
+
+    def _get_full_audio(self, start_time=None, end_time=None):
+        """
+        根据事件的 start_time 和 end_time 裁剪音频片段
+        如果 start_time 和 end_time 为 None，则返回完整音频
+        """
+        audio_path = getattr(self, "audio_path", None)
+        if not audio_path:
+            logger.warning("未找到音频路径，跳过 omni 过滤")
+            return None
+
+        try:
+            audio = AudioSegment.from_file(audio_path)
+        except Exception as e:
+            logger.error(f"加载音频失败: {e}")
+            return None
+
+        if start_time is not None and end_time is not None:
+            try:
+                start_ms = int(float(start_time) * 1000)
+                end_ms = int(float(end_time) * 1000)
+                # 保证索引不越界
+                start_ms = max(0, start_ms)
+                end_ms = min(len(audio), end_ms)
+                if end_ms > start_ms:
+                    return audio[start_ms:end_ms]
+                else:
+                    logger.warning("end_time 小于等于 start_time，跳过裁剪")
+                    return None
+            except Exception as e:
+                logger.error(f"音频裁剪失败: {e}")
+                return None
+        else:
+            return audio
+
+    def _get_event_range(self, event: Dict):
+        try:
+            start = float(event.get("start_time"))
+            end = float(event.get("end_time"))
+        except (TypeError, ValueError):
+            return None, None
+        if end <= start:
+            return None, None
+        return max(0.0, start), end
+
+    def _iter_chunks(self, audio: AudioSegment, start: float, end: float):
+        segment = audio[int(start * 1000): int(end * 1000)]
+        chunk_ms = self._chunk_seconds * 1000
+        for offset in range(0, len(segment), chunk_ms):
+            chunk = segment[offset: offset + chunk_ms]
+            if len(chunk):
+                yield chunk
+
+    def _call_omni(self, client: OpenAI, chunk: AudioSegment):
+        buffer = BytesIO()
+        chunk.export(buffer, format="wav")
+        encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        if len(encoded) > self._base64_limit:
+            return None
+
+        completion = client.chat.completions.create(
+            model=self._model_name,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_audio",
+                            "input_audio": {"data": f"data:;base64,{encoded}", "format": "wav"},
+                        },
+                        {"type": "text", "text": self._prompt},
+                    ],
+                }
+            ],
+        )
+        content = completion.choices[0].message.content
+        if content.startswith("```"):
+            content = "\n".join(content.split("\n")[1:-1])
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            return None

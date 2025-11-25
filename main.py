@@ -9,14 +9,14 @@ load_dotenv()
 if __name__ == "__main__":
     from init import setup
     # 初始化
-    video_path = Path("video/test27.mp4")
+    video_path = Path("video/e1ea2bdf3397ff662310c7ebae5495d0.mp4")
     setup(video_path)
 
     config = Config(
-        # transcription_config=TranscriptionLocalModelConfig(model_name="paraformer-zh"),
-        transcription_config=TranscriptionAPIModelConfig(),
+        transcription_config=TranscriptionLocalModelConfig(model_name="paraformer-zh"),
+        # transcription_config=TranscriptionAPIModelConfig(),
         analyzer_config=AnalyzerAPIModelConfig(
-            model_name='gpt-5-mini',
+            model_name='gpt-4o-mini',
             base_url=os.getenv("BASE_URL"),
             api_key=os.getenv("API_KEY"),
             prompt_config=AnalyzerPromptConfig(

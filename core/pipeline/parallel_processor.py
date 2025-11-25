@@ -98,7 +98,9 @@ class ParallelProcessor(PipelineProcessor):
         if not audio_path:
             logger.error("音频提取失败，终止处理")
             return
-        
+            
+        self.audio_path = audio_path
+
         # 2. 整体转写
         segments:List[Segment] = self.transcriber.transcribe(audio_path)
         if not segments:
@@ -131,16 +133,18 @@ class ParallelProcessor(PipelineProcessor):
         if non_happy_keywords_events:
             # 1. 使用omni音频理解模型进行过滤
             non_happy_keywords_no_omni_events,non_happy_keywords_omni_events = self.omni_audio_understanding(non_happy_keywords_events)
+            print(f'non_happy_keywords_no_omni_events: {non_happy_keywords_no_omni_events}')
+            print(f'non_happy_keywords_omni_events: {non_happy_keywords_omni_events}')
             final_events.extend(non_happy_keywords_omni_events)
             
             if non_happy_keywords_no_omni_events:
                 # 2. 从事件列表中筛选出有趣的事件
                 highlight_events = self.extract_timeline(non_happy_keywords_no_omni_events, self.analyzer)
+                print(f'highlight_events: {highlight_events}')
                 final_events.extend(highlight_events)
         
         final_events = sorted(final_events, key=lambda x: x.get('start_time'))
-
-        print(f'final_events: {final_events}')
+        # print(f'final_events: {final_events}')
 
         # import csv
         # with open('final_events.csv', 'a', newline='', encoding='utf-8') as f:
