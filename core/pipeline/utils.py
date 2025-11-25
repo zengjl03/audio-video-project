@@ -272,10 +272,11 @@ class TimelineExtractorMixin:
             output_items = json.loads(response_text).get("output", [])
 
             # 由于每次只传递一个事件，命中项的 event_index 应为 0
-            has_hit = any(item.get("event_index") == 0 for item in output_items)
-
-            if has_hit:
-                final_events.append(event)
+            for item in output_items:
+                if item.get('event_index') == 0:
+                    print(f'event_llm_happy:{event}')
+                    print(f'reason:{item.get("reason")}')
+                    final_events.append(event)
 
         logger.info(f"成功筛选出 {len(final_events)} 个有趣事件")
         return final_events

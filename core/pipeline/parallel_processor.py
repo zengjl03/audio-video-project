@@ -111,7 +111,6 @@ class ParallelProcessor(PipelineProcessor):
         # 使用配置的分块时间间隔
         events: List[Dict[str, Any]] = self.extract_outline(segments, self.analyzer, segment_duration_minutes=self.segment_duration_minutes)
         logger.info(f'识别出 {len(events)} 个完整事件')
-        logger.info(f'events: {events}')
         
         if not events:
             logger.warning("未识别出任何事件，终止后续处理")
@@ -120,18 +119,28 @@ class ParallelProcessor(PipelineProcessor):
         # 这里加一个插件，手动地实现这个哈哈大笑关键词的捕捉
         # final_events,non_happy_events = [],events
 
-        happy_events, non_happy_events = self._filter_events_by_happy_keywords(events)
-        logger.info(f"包含欢乐关键词的事件数: {len(happy_events)}，不包含的事件数: {len(non_happy_events)}")
+        happy_keywords_events, non_happy_keywords_events = self._filter_events_by_happy_keywords(events)
+        logger.info(f"包含欢乐关键词的事件数: {len(happy_keywords_events)}，不包含的事件数: {len(non_happy_keywords_events)}")
+
+        print(f'happy_keywords_events: {happy_keywords_events}')
+        print(f'non_happy_keywords_events: {non_happy_keywords_events}')
 
         final_events = []
-        final_events.extend(happy_events)
+        final_events.extend(happy_keywords_events)
 
-        if non_happy_events:
-            # 2. 从事件列表中筛选出有趣的事件
-            highlight_events = self.extract_timeline(non_happy_events, self.analyzer)
-            final_events.extend(highlight_events)
+        if non_happy_keywords_events:
+            # 1. 使用omni音频理解模型进行过滤
+            non_happy_keywords_no_omni_events,non_happy_keywords_omni_events = self.omni_audio_understanding(non_happy_keywords_events)
+            final_events.extend(non_happy_keywords_omni_events)
+            
+            if non_happy_keywords_no_omni_events:
+                # 2. 从事件列表中筛选出有趣的事件
+                highlight_events = self.extract_timeline(non_happy_keywords_no_omni_events, self.analyzer)
+                final_events.extend(highlight_events)
         
         final_events = sorted(final_events, key=lambda x: x.get('start_time'))
+
+        print(f'final_events: {final_events}')
 
         # import csv
         # with open('final_events.csv', 'a', newline='', encoding='utf-8') as f:

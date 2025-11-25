@@ -19,8 +19,6 @@ from loguru import logger
 
 os.environ['HF_ENDPOINT'] = "https://hf-mirror.com"
 
-# 全局常量（与参考代码一致）
-WAV_SAMPLE_RATE = 16000
 load_dotenv()
 
 class ParaformerZhModel(TranscriptionModel):
@@ -137,7 +135,7 @@ class ApiTranscriptionModel(TranscriptionModel):
             # 记录片段信息
             chunk_info_list.append((str(temp_file_path), round(start_time, 2), round(end_time, 2)))
 
-        print(f"VAD拆分完成：共 {len(chunk_info_list)} 段，总时长 {len(audio)/WAV_SAMPLE_RATE:.2f} 秒")
+        print(f"VAD拆分完成：共 {len(chunk_info_list)} 段")
         return chunk_info_list
 
     def _transcribe_single_chunk(self, chunk_info: Tuple[str, float, float]) -> Segment:
@@ -214,7 +212,7 @@ class ApiTranscriptionModel_V2(WhisperLargeV3Model,ApiTranscriptionModel):
 
     def transcribe(self, audio_path: str) -> List[Segment]:
         chunk_info_list = self._process_vad(audio_path)
-        print(chunk_info_list)
+        # print(chunk_info_list)
         segments = self._transcribe_chunks_parallel(chunk_info_list)
         # print('qwen_result: ', qwen_result)
         # segments, _ = self.model.transcribe(
