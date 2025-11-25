@@ -13,10 +13,10 @@ if __name__ == "__main__":
     setup(video_path)
 
     config = Config(
-        transcription_config=TranscriptionLocalModelConfig(model_name="paraformer-zh"),
-        # transcription_config=TranscriptionAPIModelConfig(),
+        # transcription_config=TranscriptionLocalModelConfig(model_name="paraformer-zh"),
+        transcription_config=TranscriptionAPIModelConfig(),
         analyzer_config=AnalyzerAPIModelConfig(
-            model_name='gpt-4o-mini',
+            model_name='gpt-5-mini',
             base_url=os.getenv("BASE_URL"),
             api_key=os.getenv("API_KEY"),
             prompt_config=AnalyzerPromptConfig(
