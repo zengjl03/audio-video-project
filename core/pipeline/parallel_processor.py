@@ -164,7 +164,7 @@ class ParallelProcessor(PipelineProcessor):
             self.editor.crop_video(outpath, clip.get('start_time'), clip.get('end_time'))
             logger.info(f"已保存精彩片段: {outpath} --> {clip.get('end_time') - clip.get('start_time')} 秒")
 
-            names.append(outname)
+            names.append(outpath)
             descs.append(clip.get('title'))
 
         return names,descs
