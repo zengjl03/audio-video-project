@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from loguru import logger
 from pathlib import Path
 from typing import Union
+import time
 load_dotenv()
 
 def setup_logger(video_path: Union[str, Path]):
@@ -10,7 +11,7 @@ def setup_logger(video_path: Union[str, Path]):
     log_dir = Path(os.getenv("LOG_DIR", "log"))
     log_prefix = os.getenv("LOG_PREFIX", "pipeline")
     video_stem = Path(video_path).stem
-    log_file = log_dir / f"{log_prefix}_{video_stem}.log"
+    log_file = log_dir / f"{log_prefix}_{video_stem}_{time.strftime('%Y%m%d_%H%M%S')}.log"
     os.makedirs(log_file.parent, exist_ok=True)
 
     # 重置 logger，避免重复添加 sink
@@ -43,4 +44,5 @@ def mkdir():
 def setup(video_path: Union[str, Path]):
     mkdir()
     log_file = setup_logger(video_path)
+    logger.info("--------------------------------")
     logger.info(f"日志文件已保存至: {log_file}")

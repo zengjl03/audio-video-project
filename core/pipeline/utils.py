@@ -317,7 +317,7 @@ class OmniAudioUnderstandingMixin:
             is_funny = False
             for chunk in self._iter_chunks(audio, start, end):
                 payload = self._call_omni(client, chunk)
-                print(f'payload: {payload}')
+                logger.info(f'payload: {payload}')
                 if not payload:
                     continue
                 if payload.get("emotion") == "有趣":

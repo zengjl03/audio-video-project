@@ -121,11 +121,13 @@ class ParallelProcessor(PipelineProcessor):
         # 这里加一个插件，手动地实现这个哈哈大笑关键词的捕捉
         # final_events,non_happy_events = [],events
 
+        happy_keywords_events,non_happy_keywords_omni_events,highlight_events = [],[],[]
+
         happy_keywords_events, non_happy_keywords_events = self._filter_events_by_happy_keywords(events)
         logger.info(f"包含欢乐关键词的事件数: {len(happy_keywords_events)}，不包含的事件数: {len(non_happy_keywords_events)}")
 
-        print(f'happy_keywords_events: {happy_keywords_events}')
-        print(f'non_happy_keywords_events: {non_happy_keywords_events}')
+        logger.info(f'happy_keywords_events: {happy_keywords_events}')
+        logger.info(f'non_happy_keywords_events: {non_happy_keywords_events}')
 
         final_events = []
         final_events.extend(happy_keywords_events)
@@ -133,18 +135,21 @@ class ParallelProcessor(PipelineProcessor):
         if non_happy_keywords_events:
             # 1. 使用omni音频理解模型进行过滤
             non_happy_keywords_no_omni_events,non_happy_keywords_omni_events = self.omni_audio_understanding(non_happy_keywords_events)
-            print(f'non_happy_keywords_no_omni_events: {non_happy_keywords_no_omni_events}')
-            print(f'non_happy_keywords_omni_events: {non_happy_keywords_omni_events}')
+            logger.info(f'non_happy_keywords_no_omni_events: {non_happy_keywords_no_omni_events}')
+            logger.info(f'non_happy_keywords_omni_events: {non_happy_keywords_omni_events}')
             final_events.extend(non_happy_keywords_omni_events)
             
             if non_happy_keywords_no_omni_events:
                 # 2. 从事件列表中筛选出有趣的事件
                 highlight_events = self.extract_timeline(non_happy_keywords_no_omni_events, self.analyzer)
-                print(f'highlight_events: {highlight_events}')
+                logger.info(f'highlight_events: {highlight_events}')
                 final_events.extend(highlight_events)
         
         final_events = sorted(final_events, key=lambda x: x.get('start_time'))
-        # print(f'final_events: {final_events}')
+        logger.info(f'关键词筛选的事件: {happy_keywords_events}')
+        logger.info(f'omni音频理解筛选的事件: {non_happy_keywords_omni_events}')
+        logger.info(f'llm分析有趣的事件: {highlight_events}')
+        # logger.info(f'final_events: {final_events}')
 
         # import csv
         # with open('final_events.csv', 'a', newline='', encoding='utf-8') as f:
