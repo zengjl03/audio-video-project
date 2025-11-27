@@ -55,7 +55,7 @@ class AnalyzerManager:
         
         # 调用 API（使用 JSON 模式强制结构化输出）
         response = client.chat.completions.create(
-            model=model_name,
+            model=model_name if mode == "outline" else "gpt-4o-mini",
             temperature=0.7,
             response_format={"type": "json_object"},  # 强制返回 JSON 格式
             messages=[

@@ -142,36 +142,39 @@ class ApiTranscriptionModel(TranscriptionModel):
         """转录单个音频片段，返回(起始时间, 结束时间, 转录文本)"""
         chunk_path, start_time, end_time = chunk_info
         
-        try:
-            messages = [
-                {"role": "system", "content": [{"text": ""}]},
-                {"role": "user", "content": [{"audio": chunk_path}]}
-            ]
+        for i in range(3):
+            try:
+                messages = [
+                    {"role": "system", "content": [{"text": ""}]},
+                    {"role": "user", "content": [{"audio": chunk_path}]}
+                ]
+                
+                response = dashscope.MultiModalConversation.call(
+                    api_key=self.api_key,
+                    model="qwen3-asr-flash",
+                    messages=messages,
+                    result_format="message",
+                    asr_options={"language": "zh", "enable_itn": False, "enable_lid": True}
+                )
+                
+                if response.status_code != 200:
+                    raise Exception(f"HTTP状态码异常: {response.status_code} {response}")
+                
+                output = response['output']['choices'][0]
+                recognized_text = None
+                
+                if len(output["message"]["content"]):
+                    recognized_text = output["message"]["content"][0]["text"]
+                
+                # 确保返回非None值
+                recognized_text = recognized_text.strip() if recognized_text else ""
+                return Segment(text=recognized_text, start_time=start_time, end_time=end_time)
             
-            response = dashscope.MultiModalConversation.call(
-                api_key=self.api_key,
-                model="qwen3-asr-flash",
-                messages=messages,
-                result_format="message",
-                asr_options={"language": "zh", "enable_itn": False, "enable_lid": True}
-            )
-            
-            if response.status_code != 200:
-                raise Exception(f"HTTP状态码异常: {response.status_code} {response}")
-            
-            output = response['output']['choices'][0]
-            recognized_text = None
-            
-            if len(output["message"]["content"]):
-                recognized_text = output["message"]["content"][0]["text"]
-            
-            # 确保返回非None值
-            recognized_text = recognized_text.strip() if recognized_text else ""
-            return Segment(text=recognized_text, start_time=start_time, end_time=end_time)
-        
-        except Exception as e:
-            print(f"片段转录失败（{start_time:.2f}-{end_time:.2f}）：{e}")
-            return Segment(text="", start_time=start_time, end_time=end_time)
+            except Exception as e:
+                print(f"第{i+1}次-片段转录失败（{start_time:.2f}-{end_time:.2f}）")
+                import time
+                time.sleep(1)
+        return Segment(text="", start_time=start_time, end_time=end_time)
 
     def _transcribe_chunks_parallel(self, chunk_info_list: List[Tuple[str, float, float]]) -> List[Segment]:
         """

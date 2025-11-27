@@ -9,14 +9,13 @@ load_dotenv()
 if __name__ == "__main__":
     from init import setup
     # 初始化
-    video_path = Path("video/微信视频_20251127150910.mp4")
-    setup(video_path)
+    video_path = Path("video/49be4c5f5c43a8c0c33ed61f2bdf2792.mp4")
 
     config = Config(
         # transcription_config=TranscriptionLocalModelConfig(model_name="paraformer-zh"),
         transcription_config=TranscriptionAPIModelConfig(),
         analyzer_config=AnalyzerAPIModelConfig(
-            model_name='gpt-5-mini',
+            model_name='gemini-2.5-flash-nothinking',
             base_url=os.getenv("BASE_URL"),
             api_key=os.getenv("API_KEY"),
             prompt_config=AnalyzerPromptConfig(

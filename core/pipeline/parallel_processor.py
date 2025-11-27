@@ -7,6 +7,8 @@ from core.utils import Config, timer,Segment
 from core.extract import EditorManager
 import re
 
+from init import setup
+
 
 load_dotenv()
 
@@ -85,6 +87,7 @@ class ParallelProcessor(PipelineProcessor):
     
     @timer
     def process(self, video_path: Path) -> Tuple[List[str], List[str]]:
+        setup(video_path)
         self.video_path = video_path
         self.editor = EditorManager(self.video_path)
         # 检查
