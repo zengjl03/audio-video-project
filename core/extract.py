@@ -59,8 +59,10 @@ class EditorManager:
             logger.info(f"Cropped: {output_path}")
         except subprocess.CalledProcessError as e:
             logger.error(f"FFmpeg crop error (return code {e.returncode})")
+            raise e
         except Exception as e:
             logger.error(f"Crop error: {e}")
+            raise e
 
 if __name__ == "__main__":
     editor = EditorManager("../video/test2.mp4")

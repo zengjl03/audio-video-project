@@ -85,15 +85,14 @@ class ParallelProcessor(PipelineProcessor):
     
     @timer
     def process(self, video_path: Path) -> Tuple[List[str], List[str]]:
-        self.video_path = video_path    
-        self.editor = EditorManager(self.video_path)
         self.video_path = video_path
+        self.editor = EditorManager(self.video_path)
         # 检查
         if not self.check_video(self.video_path):
             return
         logger.info(f"开始处理视频: {self.video_path}")
 
-        # 1. 提取整段音频
+        # # 1. 提取整段音频
         audio_path = self.editor.extract_audio()
         if not audio_path:
             logger.error("音频提取失败，终止处理")
@@ -137,6 +136,7 @@ class ParallelProcessor(PipelineProcessor):
             non_happy_keywords_no_omni_events,non_happy_keywords_omni_events = self.omni_audio_understanding(non_happy_keywords_events)
             logger.info(f'non_happy_keywords_no_omni_events: {non_happy_keywords_no_omni_events}')
             logger.info(f'non_happy_keywords_omni_events: {non_happy_keywords_omni_events}')
+
             final_events.extend(non_happy_keywords_omni_events)
             
             if non_happy_keywords_no_omni_events:
@@ -166,11 +166,13 @@ class ParallelProcessor(PipelineProcessor):
         for idx, clip in enumerate(final_events, 1):
             outname = f"clip_{self.video_path.stem}_{idx:02d}.mp4"
             outpath = self.output_dir / outname
-            self.editor.crop_video(outpath, clip.get('start_time'), clip.get('end_time'))
-            logger.info(f"已保存精彩片段: {outpath} --> {clip.get('end_time') - clip.get('start_time')} 秒")
-
-            names.append(outpath)
-            descs.append(clip.get('title'))
+            try:
+                self.editor.crop_video(outpath, clip.get('start_time'), clip.get('end_time'))
+                logger.info(f"已保存精彩片段: {outpath} --> {clip.get('end_time') - clip.get('start_time')} 秒")
+                names.append(outpath)
+                descs.append(clip.get('title'))
+            except Exception as e:
+                logger.error(f"保存精彩片段失败: {outpath} --> {e}")
 
         return names,descs
             
