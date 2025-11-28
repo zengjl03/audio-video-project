@@ -117,7 +117,8 @@ class ApiTranscriptionModel(TranscriptionModel):
         
     def _process_vad(self, audio: str) -> List[Tuple[str, float, float]]:
         
-        vad_model = AutoModel(model="fsmn-vad", model_revision="v2.0.4",disable_update=True) 
+        vad_model = AutoModel(model="fsmn-vad", vad_model_revision="v2.0.4",max_end_silence_time=800,speech_noise_thres=-0.5,
+                  disable_update=True) 
         vad_result = vad_model.generate(input=audio)[0].get('value',[])
         # 提取音频片段
         audio_s = AudioSegment.from_file(audio)
@@ -206,26 +207,14 @@ class ApiTranscriptionModel(TranscriptionModel):
         results.sort(key=lambda x: x.start_time)
         return results
 
-class ApiTranscriptionModel_V2(WhisperLargeV3Model,ApiTranscriptionModel):
+class ApiTranscriptionModel_V2(ApiTranscriptionModel):
     def __init__(self):
-        # 显式初始化第一个父类
-        # WhisperLargeV3Model.__init__(self)
-        # 显式初始化第二个父类
-        ApiTranscriptionModel.__init__(self)
+        super().__init__()
 
     def transcribe(self, audio_path: str) -> List[Segment]:
         chunk_info_list = self._process_vad(audio_path)
-        # print(chunk_info_list)
         segments = self._transcribe_chunks_parallel(chunk_info_list)
-        # print('qwen_result: ', qwen_result)
-        # segments, _ = self.model.transcribe(
-        #     audio_path,
-        #     language="zh",
-        #     # initial_prompt=qwen_result
-        # )
-        # print('segments: ', [Segment(text=seg.text, start_time=seg.start, end_time=seg.end) for seg in segments])
-        # import shutil
-        # shutil.rmtree(self.temp_dir, ignore_errors=True)
+
         for it in chunk_info_list:
             path,_,_ = it
             Path(path).unlink(missing_ok=False)
