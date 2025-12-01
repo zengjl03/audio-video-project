@@ -2,26 +2,29 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from core.pipeline.parallel_processor import ParallelProcessor
-from core.utils import AnalyzerPromptConfig, Config, TranscriptionLocalModelConfig, AnalyzerLocalModelConfig,AnalyzerAPIModelConfig,TranscriptionAPIModelConfig
+from core.utils import AnalyzerModelNameConfig, AnalyzerPromptConfig, Config, TranscriptionLocalModelConfig, AnalyzerLocalModelConfig,AnalyzerAPIModelConfig,TranscriptionAPIModelConfig
 
 load_dotenv()
 
 if __name__ == "__main__":
     from init import setup
     # 初始化
-    video_path = Path("video/49be4c5f5c43a8c0c33ed61f2bdf2792.mp4")
+    video_path = Path("video/test3.mp4")
 
     config = Config(
         # transcription_config=TranscriptionLocalModelConfig(model_name="paraformer-zh"),
         transcription_config=TranscriptionAPIModelConfig(),
         analyzer_config=AnalyzerAPIModelConfig(
-            model_name='gemini-2.5-flash-nothinking',
             base_url=os.getenv("BASE_URL"),
             api_key=os.getenv("API_KEY"),
+            model_name_config=AnalyzerModelNameConfig(
+                outline_model_name='gemini-2.5-flash-nothinking',
+                highlight_model_name='gpt-4o-mini'
+            ),
             prompt_config=AnalyzerPromptConfig(
                 outline_prompt=Path('core/prompts/outline_prompt.txt'),
                 highlight_prompt=Path('core/prompts/highlight_prompt.txt')
-                )
+            )
         ),
 
         output_dir=os.getenv("OUTPUT_DIR"),

@@ -5,6 +5,26 @@ from loguru import logger
 import time
 from functools import wraps
 from pathlib import Path
+from pydantic import BaseModel, Field
+
+class EventItem(BaseModel):
+    title: str = Field(description="事件的简短标题，描述这个事件的核心，长度需控制在4-8个汉字或16个字符以内")
+    description: str = Field(description="事件的详细描述，说明这个事件的内容")
+    start_time: float = Field(description="完整事件的开始时间（秒数格式）")
+    end_time: float = Field(description="完整事件的结束时间（秒数格式）")
+    content: str = Field(description="合并后的完整文本内容（所有相关片段的文本合并）")
+
+    # 关键配置：允许额外字段
+    model_config = {"extra": "allow"}
+
+
+class OutlineResponse(BaseModel):
+    events: List[EventItem] = Field(description="事件列表")
+
+
+class HighlightResponse(BaseModel):
+    is_highlight: bool = Field(description="是否是哈哈笑、家庭欢快有趣的事件")
+    reason: str = Field(description="筛选原因，说明为什么这个事件符合'哈哈笑、家庭欢快有趣'的标准")
 
 def timer(func):
     """计算函数执行时间的装饰器"""
@@ -24,24 +44,9 @@ class Segment:
     start_time:float
     end_time:float
 
-    def to_dict(self) -> Dict:
-        return {
-            "text": self.text,
-            "start_time": self.start_time,
-            "end_time": self.end_time
-        }
-
 @dataclass
 class SegmentWithSpk(Segment):
     spk_id:int
-
-    def to_dict(self) -> Dict:
-        return {
-            "text": self.text,
-            "start_time": self.start_time,
-            "end_time": self.end_time,
-            "spk_id": self.spk_id
-        }
 
 class TranscriptionModel(ABC):
     @abstractmethod
@@ -68,18 +73,23 @@ class AnalyzerPromptConfig:
     highlight_prompt:Path
 
 @dataclass
+class AnalyzerModelNameConfig:
+    outline_model_name:str
+    highlight_model_name:str
+
+@dataclass
 class AnalyzerAPIModelConfig:
     api_key:str
     base_url:str
-    model_name:str
     prompt_config:AnalyzerPromptConfig
+    model_name_config:AnalyzerModelNameConfig
     mode:str = 'api'
 
 @dataclass
 class AnalyzerLocalModelConfig:
     prompt_config:AnalyzerPromptConfig
+    model_name_config:AnalyzerModelNameConfig
     mode:str = 'local'
-    model_name:Literal["qwen3-4b","qwen2.5-14b-instruct","qwen2.5-14b-instruct-gptq-int4"] = "qwen3-4b"
 
 @dataclass
 class Config:

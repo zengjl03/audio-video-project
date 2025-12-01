@@ -3,7 +3,7 @@ from typing import List, Dict, Any, Tuple
 from loguru import logger
 from dotenv import load_dotenv
 from core.pipeline.base import PipelineProcessor
-from core.utils import Config, timer,Segment
+from core.utils import Config, timer,Segment,EventItem
 from core.extract import EditorManager
 import re
 
@@ -72,13 +72,13 @@ class ParallelProcessor(PipelineProcessor):
                 r"太让人骄傲了+",
             ]
 
-    def _filter_events_by_happy_keywords(self, events: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    def _filter_events_by_happy_keywords(self, events: List[EventItem]) -> Tuple[List[EventItem], List[EventItem]]:
         """按照欢乐关键词过滤events，返回(包含关键词的events, 不包含关键词的events)"""
         happy_regex = re.compile('|'.join(self.happy_keywords))
         happy_events = []
         non_happy_events = []
         for event in events:
-            content = event.get('content', '')
+            content = event.content.strip()
             if happy_regex.search(content):
                 happy_events.append(event)
             else:
@@ -113,7 +113,7 @@ class ParallelProcessor(PipelineProcessor):
         
         # 1. 识别完整事件（包含时间戳）
         # 使用配置的分块时间间隔
-        events: List[Dict[str, Any]] = self.extract_outline(segments, self.analyzer, segment_duration_minutes=self.segment_duration_minutes)
+        events: List[EventItem] = self.extract_outline(segments, self.analyzer, segment_duration_minutes=self.segment_duration_minutes)
         logger.info(f'识别出 {len(events)} 个完整事件')
         
         if not events:
@@ -148,7 +148,8 @@ class ParallelProcessor(PipelineProcessor):
                 logger.info(f'highlight_events: {highlight_events}')
                 final_events.extend(highlight_events)
         
-        final_events = sorted(final_events, key=lambda x: x.get('start_time'))
+        final_events = sorted(final_events, key=lambda x: x.start_time)
+        logger.info('--------------------------------')
         logger.info(f'关键词筛选的事件: {happy_keywords_events}')
         logger.info(f'omni音频理解筛选的事件: {non_happy_keywords_omni_events}')
         logger.info(f'llm分析有趣的事件: {highlight_events}')
@@ -170,10 +171,10 @@ class ParallelProcessor(PipelineProcessor):
             outname = f"clip_{self.video_path.stem}_{idx:02d}.mp4"
             outpath = self.output_dir / outname
             try:
-                self.editor.crop_video(outpath, clip.get('start_time'), clip.get('end_time'))
-                logger.info(f"已保存精彩片段: {outpath} --> {clip.get('end_time') - clip.get('start_time')} 秒")
+                self.editor.crop_video(outpath, clip.start_time, clip.end_time)
+                logger.info(f"已保存精彩片段: {outpath} --> {clip.end_time - clip.start_time} 秒")
                 names.append(outpath)
-                descs.append(clip.get('title'))
+                descs.append(clip.title)
             except Exception as e:
                 logger.error(f"保存精彩片段失败: {outpath} --> {e}")
 

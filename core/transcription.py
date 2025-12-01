@@ -110,10 +110,9 @@ class ApiTranscriptionModel(TranscriptionModel):
         if not self.api_key:
             raise ValueError("必须设置 DASHSCOPE_API_KEY 环境变量或通过 api_key 参数传入")
         
-        self.num_threads = int(os.getenv("NUM_THREADS", 4))  # 添加默认值，避免KeyError
-        self.temp_dir = Path(os.getenv("TMP_DIR") or str(Path.home() / "qwen3-asr-cache"))  # 修正为temp_dir
+        self.num_threads = int(os.getenv("NUM_THREADS"))
+        self.temp_dir = Path(os.getenv("TMP_DIR"))
         self.temp_dir.mkdir(exist_ok=True)  # 创建临时目录
-        
         
     def _process_vad(self, audio: str) -> List[Tuple[str, float, float]]:
         
@@ -214,7 +213,6 @@ class ApiTranscriptionModel_V2(ApiTranscriptionModel):
     def transcribe(self, audio_path: str) -> List[Segment]:
         chunk_info_list = self._process_vad(audio_path)
         segments = self._transcribe_chunks_parallel(chunk_info_list)
-
         for it in chunk_info_list:
             path,_,_ = it
             Path(path).unlink(missing_ok=False)

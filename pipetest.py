@@ -7,16 +7,12 @@ from core.utils import AnalyzerPromptConfig, Config, TranscriptionLocalModelConf
 load_dotenv()
 
 if __name__ == "__main__":
-    from init import setup
-    for i in range(31,40+1):
-        video_path = f"video/boring/test{i}.mp4"
-        setup(video_path)
+    for i in range(28,60+1):
+        video_path = f"video/test{i}.mp4"
         config = Config(
-            video_path=video_path,
-            # transcription_config=TranscriptionLocalModelConfig(model_name="paraformer-zh"),
             transcription_config=TranscriptionAPIModelConfig(),
             analyzer_config=AnalyzerAPIModelConfig(
-                model_name="gpt-5",
+                model_name='gemini-2.5-flash-nothinking',
                 base_url=os.getenv("BASE_URL"),
                 api_key=os.getenv("API_KEY"),
                 prompt_config=AnalyzerPromptConfig(
@@ -29,5 +25,6 @@ if __name__ == "__main__":
             segment_duration_minutes=30
         )
 
-        processor = ParallelProcessor(config)
-        processor.process()
+    processor = ParallelProcessor(config)
+
+    names,descs = processor.process(video_path)

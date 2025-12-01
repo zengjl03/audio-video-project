@@ -8,69 +8,11 @@ from io import BytesIO
 from pydub import AudioSegment
 from openai import OpenAI
 from dotenv import load_dotenv
-
+from dataclasses import asdict
+from core.utils import EventItem
 load_dotenv()
 
 class OutlineExtractorMixin:
-    def __init__(self):
-        pass
-
-    def _parse_outline_response(self, response: str) -> List[Dict]:
-        """
-        解析事件识别响应，返回事件列表（包含时间戳）
-        """
-        events = []
-        try:
-            # 解析响应文本
-            if isinstance(response, dict):
-                response_text = response.get("response", response.get("content", ""))
-            else:
-                response_text = response
-            
-            # 清理响应文本，移除可能的markdown代码块标记
-            response_text = response_text.strip()
-            if response_text.startswith("```"):
-                lines = response_text.split("\n")
-                response_text = "\n".join(lines[1:-1]) if len(lines) > 2 else response_text
-            elif response_text.startswith("```json"):
-                lines = response_text.split("\n")
-                response_text = "\n".join(lines[1:-1]) if len(lines) > 2 else response_text
-            
-            # 解析JSON字符串
-            data = json.loads(response_text)
-            
-            # 遍历事件列表
-            for item in data.get("events", []):
-                current_event = {
-                    "title": item.get("title", ""),
-                    "description": item.get("description", ""),
-                    "start_time": float(item.get("start_time", 0)),
-                    "end_time": float(item.get("end_time", 0)),
-                    "content": item.get("content", "")
-                }
-                events.append(current_event)
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON解析错误: {e}")
-            logger.error(f"响应内容: {response_text[:500] if 'response_text' in locals() else str(response)[:500]}")
-        except Exception as e:
-            logger.error(f"解析事件响应时发生错误: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-        
-        logger.info(f"解析出 {len(events)} 个事件")
-        return events
-
-    def _merge_outlines(self, outlines: List[Dict]) -> List[Dict]:
-        """
-        合并和去重大纲，保留最先出现的版本
-        """
-        unique_outlines = {}
-        for outline in outlines:
-            title = outline['title']
-            if title not in unique_outlines:
-                unique_outlines[title] = outline
-        return list(unique_outlines.values())
-
     def _smart_chunk_segments(self, segments: List[Dict[str, Any]], segment_duration_minutes: int = 30, pause_threshold_ms: float = 1000.0) -> List[Dict[str, Any]]:
         """
         参照 autoclip 的时间智能分块逻辑，将转写片段切分为均匀时间块
@@ -172,33 +114,23 @@ class OutlineExtractorMixin:
             
         return result_chunks
     
-    def extract_outline(self, segments, analyzer, segment_duration_minutes: int = 30) -> List[Dict[str, Any]]:
-        """
-        从转录文本和时间戳中识别完整事件，返回包含时间戳的事件列表
-        
-        参数:
-            segments: 转录文本片段列表
-            analyzer: 分析器对象
-            interval_minutes: 分块时间间隔（分钟），默认30分钟
-        """
+    def extract_outline(self, segments, analyzer, segment_duration_minutes: int = 30) -> List[EventItem]:
         logger.info("开始识别完整事件...")
-        
         # 标准化segments格式
-        normalized_segments = [seg.to_dict() for seg in segments]
+        normalized_segments = [asdict(seg) for seg in segments]
         if not normalized_segments:
             logger.warning("转写结果为空或格式异常，终止后续分析")
             return []
 
         # 使用智能分块将segments切分为多个块
         chunk_list = self._smart_chunk_segments(normalized_segments, segment_duration_minutes=segment_duration_minutes)
-
         if not chunk_list:
             logger.warning("未生成任何有效分块，终止后续分析")
             return []
 
         logger.info(f"转写结果按约 {segment_duration_minutes} 分钟切分，共 {len(chunk_list)} 个块")
 
-        all_events: List[Dict[str, Any]] = []
+        all_events: List[EventItem] = []
         for i, chunk in enumerate(chunk_list):
             logger.info(f"处理第 {i+1}/{len(chunk_list)} 个块...")
             
@@ -213,77 +145,43 @@ class OutlineExtractorMixin:
             input_data = {
                 "segments": chunk_segments
             }
-            
-            # 调用analyzer进行事件识别
+            # 调用 analyzer 进行事件识别（对外不再暴露 mode 字符串）
             logger.info(f"正在分析第 {i+1} 个块，包含 {len(chunk_segments)} 个转录片段...")
-            response = analyzer.analyze(input_data, mode="outline")
-            
+            response = analyzer.analyze_outline(input_data)
             if not response:
                 logger.warning(f"处理第 {i+1} 个块时返回空响应")
                 continue
             
             # 解析响应，获取事件列表
-            chunk_events = self._parse_outline_response(response)
-            logger.info(f"第 {i+1} 个块识别出 {len(chunk_events)} 个事件")
-            all_events.extend(chunk_events)
-
-
+            logger.info(f"第 {i+1} 个块识别出 {len(response.events)} 个事件")
+            all_events.extend(response.events)
         logger.info(f"事件识别完成，共识别出 {len(all_events)} 个完整事件")
         return all_events
-    
 
 
 class HighlightExtractorMixin:
-    def __init__(self):
-        pass
-
-    def extract_timeline(self, events: List[Dict], analyzer) -> List[Dict]:
-        """
-        从事件列表中筛选出哈哈笑、家庭欢快有趣的事件。
-        
-        新版特性：
-        - 接收已识别的事件列表（包含时间戳）
-        - 筛选出符合"哈哈笑、家庭欢快有趣"标准的事件
-        """
+    def extract_timeline(self, events: List[EventItem], analyzer) -> List[EventItem]:
         logger.info("开始筛选有趣事件...")
 
         if not events:
             logger.warning("事件列表为空，无法进行筛选")
             return []
-
-        final_events: List[Dict] = []
+        final_events: List[EventItem] = []
 
         for idx, event in enumerate(tqdm(events, desc="筛选事件", unit="件"), start=1):
-            event_without_time = {
-                key: value
-                for key, value in event.items()
-                if key not in {"start_time", "end_time"}
-            }
-
+            event_dict = event.model_dump()
+            # 不传入 time 属性
+            event_without_time = {k: v for k, v in event_dict.items() if k not in {"start_time", "end_time"}}
             input_data = {"events": [event_without_time]}
-
-            raw_response = analyzer.analyze(input_data, mode='highlight')
-
-            if isinstance(raw_response, dict):
-                response_text = raw_response.get("response", raw_response.get("content", ""))
-            else:
-                response_text = raw_response
-
-            response_text = response_text.strip()
-            if response_text.startswith("```"):
-                lines = response_text.split("\n")
-                response_text = "\n".join(lines[1:-1]) if len(lines) > 2 else response_text
-            elif response_text.startswith("```json"):
-                lines = response_text.split("\n")
-                response_text = "\n".join(lines[1:-1]) if len(lines) > 2 else response_text
-
-            output_items = json.loads(response_text).get("output", [])
-
+            # 对外使用语义化方法，不再传递字符串 mode
+            response = analyzer.analyze_highlight(input_data)
+            if not response:
+                logger.warning(f"处理第 {idx+1} 个事件时返回空响应")
+                continue
             # 由于每次只传递一个事件，命中项的 event_index 应为 0
-            for item in output_items:
-                if item.get('event_index') == 0:
-                    event['llm_reason'] = item.get("reason",'')
-                    final_events.append(event)
+            if response.is_highlight:
+                event.llm_reason = response.reason
+                final_events.append(event)
 
         logger.info(f"成功筛选出 {len(final_events)} 个有趣事件")
         return final_events
@@ -298,7 +196,7 @@ class OmniAudioUnderstandingMixin:
     _base64_limit = 20_000_000
     _model_name = "qwen3-omni-flash"
 
-    def omni_audio_understanding(self, events: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
+    def omni_audio_understanding(self, events: List[EventItem]) -> Tuple[List[EventItem], List[EventItem]]:
         if not events:
             return [], []
 
@@ -307,21 +205,23 @@ class OmniAudioUnderstandingMixin:
         if client is None or audio is None:
             return events, []
 
-        passed, rejected = [], []
+        passed: List[EventItem] = []
+        rejected: List[EventItem] = []
+        
         for event in events:
             start, end = self._get_event_range(event)
             if start is None:
-                rejected.append(event)
+                rejected.append(event.model_dump())
                 continue
 
             is_funny = False
             for chunk in self._iter_chunks(audio, start, end):
                 payload = self._call_omni(client, chunk)
-                logger.info(f'event: {event.get("title")} --> payload: {payload}')
+                logger.info(f'event: {event.title} --> payload: {payload}')
                 if not payload:
                     continue
                 if payload.get("emotion") == "有趣":
-                    event["omni_reason"] = payload.get("reason", "")
+                    event.omni_reason = payload.get("reason", "")
                     is_funny = True
                     break
 
@@ -379,10 +279,10 @@ class OmniAudioUnderstandingMixin:
         else:
             return audio
 
-    def _get_event_range(self, event: Dict):
+    def _get_event_range(self, event: EventItem):
         try:
-            start = float(event.get("start_time"))
-            end = float(event.get("end_time"))
+            start = float(event.start_time)
+            end = float(event.end_time)
         except (TypeError, ValueError):
             return None, None
         if end <= start:
