@@ -97,7 +97,7 @@ class AnalyzerManager:
         agent = create_agent(
             model = self._create_llm(cfg),
             tools = [],
-            response_format = OutlineResponse,
+            response_format = cfg["response_model"],
         )
 
         res = agent.invoke({'messages':self._build_messages(text,cfg)})
