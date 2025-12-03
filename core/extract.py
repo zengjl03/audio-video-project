@@ -17,11 +17,12 @@ class EditorManager:
             audio_path = audio_dir / f"{video_path.stem}.wav"
             if audio_path.exists():
                 logger.info(f"Audio already exists: {audio_path}")
-                return str(audio_path)
+                # return str(audio_path)
             cmd = [
                 'ffmpeg', '-i', str(video_path),
-                '-ac', '1',  # 转为单声道
-                '-y',  # 覆盖输出文件
+                '-ac', '1',  # 仅转为单声道，不改变其他参数
+                '-c:a', 'copy',  # 直接复制音频编码（避免重新编码导致时长偏差）
+                '-y',  # 覆盖输出
                 str(audio_path)
             ]
             result = subprocess.run(cmd, capture_output=True, text=False)  # 不自动解码，避免编码问题

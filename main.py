@@ -9,7 +9,7 @@ load_dotenv()
 if __name__ == "__main__":
     from init import setup
     # 初始化
-    video_path = Path("video/video_爸爸要出门上班 女儿舍不得 奶声..._0.mp4")
+    video_path = Path("video/微信视频2025-12-03_193819_529.mp4")
 
     config = Config(
         # transcription_config=TranscriptionLocalModelConfig(model_name="paraformer-zh"),
