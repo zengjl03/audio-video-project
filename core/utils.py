@@ -23,8 +23,8 @@ class OutlineResponse(BaseModel):
 
 
 class HighlightResponse(BaseModel):
-    is_highlight: bool = Field(description="是否是哈哈笑、家庭欢快有趣的事件")
-    reason: str = Field(description="筛选原因，说明为什么这个事件符合'哈哈笑、家庭欢快有趣'的标准")
+    is_highlight: bool = Field(description="是否是值得纪念的事件")
+    reason: str = Field(description="筛选原因，说明为什么这个事件值得纪念")
 
 def timer(func):
     """计算函数执行时间的装饰器"""
