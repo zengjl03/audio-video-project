@@ -100,7 +100,7 @@ class ParallelProcessor(PipelineProcessor):
         if not audio_path:
             logger.error("音频提取失败，终止处理")
             return
-        return
+        # return
             
         self.audio_path = audio_path
 

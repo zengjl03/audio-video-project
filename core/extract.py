@@ -18,16 +18,41 @@ class EditorManager:
             if audio_path.exists():
                 logger.info(f"Audio already exists: {audio_path}")
                 # return str(audio_path)
-            cmd = [
-                'ffmpeg', '-i', str(video_path),
-                '-ac', '1',  # 仅转为单声道，不改变其他参数
-                '-c:a', 'copy',  # 直接复制音频编码（避免重新编码导致时长偏差）
-                '-y',  # 覆盖输出
-                str(audio_path)
+            temp_audio = audio_dir / f"{video_path.stem}_temp.m4a"
+            cmd1 = [
+                'ffmpeg',
+                '-i', f'"{video_path}"',  # 双引号包裹路径，兼容中文/空格
+                '-vn',                    # 只提音频
+                '-c:a', 'copy',           # 无损复制
+                '-copyts',                # 保留原时间戳（防极端情况截断）
+                '-avoid_negative_ts', 'make_zero',  # 修复负时间戳
+                '-y',
+                f'"{temp_audio}"'
             ]
-            result = subprocess.run(cmd, capture_output=True, text=False)  # 不自动解码，避免编码问题
-            if result.returncode != 0:
-                logger.error(f"FFmpeg 错误: {result.stderr.decode('gbk', errors='replace')}")
+            # 拼接命令（避免列表中双引号被转义）
+            cmd1_str = ' '.join(cmd1)
+            subprocess.run(cmd1_str, shell=False, check=True)
+
+            # 第二步：转码为单声道16k PCM（绝对兼容）
+            sample_rate = 16000
+            cmd2 = [
+                'ffmpeg',
+                '-i', f'"{temp_audio}"',
+                '-ac', '1',                      # 单声道
+                '-ar', str(sample_rate),         # 16k采样率
+                '-c:a', 'pcm_s16le',             # WAV编码（无压缩，全兼容）
+                '-af', 'aresample=async=1:min_hard_comp=0.1',  # 更鲁棒的重采样
+                '-fflags', '+genpts',            # 重新生成时间戳
+                '-y',
+                f'"{audio_path}"'
+            ]
+            cmd2_str = ' '.join(cmd2)
+            subprocess.run(cmd2_str, shell=False, check=True)
+
+            # 清理临时文件（可选）
+            import os
+            if os.path.exists(temp_audio):
+                os.remove(temp_audio)
             logger.info(f"Extracted: {audio_path}")
             return str(audio_path)
         except Exception as e:
