@@ -4,7 +4,7 @@ from loguru import logger
 from dotenv import load_dotenv
 from core.pipeline.base import PipelineProcessor
 from core.pipeline.utils import HighlightExtractorMixin, OmniAudioUnderstandingMixin, OutlineExtractorMixin
-from core.utils import Config, timer,Segment,EventItem
+from core.utils import Config, timer,Segment,EventItem,SegmentWithEmotion
 from core.extract import EditorManager
 import re
 
@@ -49,16 +49,15 @@ class ParallelProcessor_V2(PipelineProcessor,OutlineExtractorMixin,OmniAudioUnde
         # 1. 识别完整事件（包含时间戳）
         # 使用配置的分块时间间隔
         events: List[EventItem] = self.extract_outline(segments, self.analyzer, segment_duration_minutes=self.segment_duration_minutes)
-        logger.info(f'识别出 {len(events)} 个完整事件')
+        # logger.info(f'识别出 {len(events)} 个完整事件')
+        logger.info(f'识别出的事件: {events}')
         
         if not events:
             logger.warning("未识别出任何事件，终止后续处理")
             return
 
-        key_events,_ = self.omni_audio_understanding(events)
-
+        key_events = self.refine_events_with_omni(events)
         final_events = key_events[:]
-        
         final_events = sorted(final_events, key=lambda x: x.start_time)
 
         logger.info('--------------------------------')

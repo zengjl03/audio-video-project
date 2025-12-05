@@ -196,41 +196,6 @@ class OmniAudioUnderstandingMixin:
     _base64_limit = 20_000_000
     _model_name = "qwen3-omni-flash"
 
-    def omni_audio_understanding(self, events: List[EventItem]) -> Tuple[List[EventItem], List[EventItem]]:
-        if not events:
-            return [], []
-
-        client = self._get_omni_client()
-        audio = self._get_full_audio()
-        if client is None or audio is None:
-            return events, []
-
-        passed: List[EventItem] = []
-        rejected: List[EventItem] = []
-        
-        for event in events:
-            start, end = self._get_event_range(event)
-            logger.info(f'event: {event.title} --> start: {start}, end: {end}')
-            if start is None:
-                rejected.append(event.model_dump())
-                continue
-
-            is_funny = False
-            for chunk in self._iter_chunks(audio, start, end):
-                # print(f'chunk: {chunk}')
-                payload = self._call_omni(client, chunk)
-                logger.info(f'event: {event.title} --> payload: {payload}')
-                if not payload:
-                    continue
-                if payload.get("emotion") == "有趣":
-                    event.omni_reason = payload.get("reason", "")
-                    is_funny = True
-                    break
-
-            (passed if is_funny else rejected).append(event)
-
-        return rejected, passed
-
     def refine_events_with_omni(self, events: List[EventItem]) -> List[EventItem]:
         """
         对最终的事件列表做一次基于 omni 的精细处理：
@@ -255,12 +220,6 @@ class OmniAudioUnderstandingMixin:
 
         for event in events:
             start, end = self._get_event_range(event)
-
-            duration = end - start
-            # 仅对大于 60 秒的事件做精细切分，其余直接保留
-            if duration <= 60:
-                refined_events.append(event)
-                continue
 
             interesting_intervals: List[Tuple[float, float]] = []
             chunk_seconds = self._chunk_seconds

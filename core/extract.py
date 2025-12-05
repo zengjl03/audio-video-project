@@ -21,33 +21,31 @@ class EditorManager:
             temp_audio = audio_dir / f"{video_path.stem}_temp.m4a"
             cmd1 = [
                 'ffmpeg',
-                '-i', f'"{video_path}"',  # 双引号包裹路径，兼容中文/空格
+                '-i', str(video_path),  # 双引号包裹路径，兼容中文/空格
                 '-vn',                    # 只提音频
                 '-c:a', 'copy',           # 无损复制
                 '-copyts',                # 保留原时间戳（防极端情况截断）
                 '-avoid_negative_ts', 'make_zero',  # 修复负时间戳
                 '-y',
-                f'"{temp_audio}"'
+                str(temp_audio)
             ]
-            # 拼接命令（避免列表中双引号被转义）
-            cmd1_str = ' '.join(cmd1)
-            subprocess.run(cmd1_str, shell=False, check=True)
+            subprocess.run(cmd1, shell=False, check=True, stdout=subprocess.DEVNULL,  # 屏蔽标准输出
+                           stderr=subprocess.DEVNULL)   # 屏蔽错误输出（ffmpeg日志主要走stderr）
 
             # 第二步：转码为单声道16k PCM（绝对兼容）
             sample_rate = 16000
             cmd2 = [
                 'ffmpeg',
-                '-i', f'"{temp_audio}"',
+                '-i', str(temp_audio),
                 '-ac', '1',                      # 单声道
                 '-ar', str(sample_rate),         # 16k采样率
                 '-c:a', 'pcm_s16le',             # WAV编码（无压缩，全兼容）
                 '-af', 'aresample=async=1:min_hard_comp=0.1',  # 更鲁棒的重采样
                 '-fflags', '+genpts',            # 重新生成时间戳
                 '-y',
-                f'"{audio_path}"'
+                str(audio_path)
             ]
-            cmd2_str = ' '.join(cmd2)
-            subprocess.run(cmd2_str, shell=False, check=True)
+            subprocess.run(cmd2, shell=False, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
             # 清理临时文件（可选）
             import os
@@ -82,6 +80,7 @@ class EditorManager:
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
             )
+            logger.info(cmd)
             logger.info(f"Cropped: {output_path}")
         except subprocess.CalledProcessError as e:
             logger.error(f"FFmpeg crop error (return code {e.returncode})")

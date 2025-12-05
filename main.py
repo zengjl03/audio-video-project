@@ -7,7 +7,6 @@ from core.utils import AnalyzerModelNameConfig, AnalyzerPromptConfig, Config, Tr
 load_dotenv()
 
 if __name__ == "__main__":
-    from init import setup
     # 初始化
     video_path = Path("video/test31.mp4")
 

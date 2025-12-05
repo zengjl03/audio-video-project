@@ -74,12 +74,12 @@ class TranscriptionAPIModelConfig:
 @dataclass
 class AnalyzerPromptConfig:
     outline_prompt:Path
-    highlight_prompt:Path
+    highlight_prompt:Path | None = None
 
 @dataclass
 class AnalyzerModelNameConfig:
     outline_model_name:str
-    highlight_model_name:str
+    highlight_model_name:str | None = None
 
 @dataclass
 class AnalyzerAPIModelConfig:

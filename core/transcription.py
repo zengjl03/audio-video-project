@@ -171,7 +171,7 @@ class ApiTranscriptionModel(TranscriptionModel):
                 # 确保返回非None值
                 recognized_text = recognized_text.strip() if recognized_text else ""
                 return SegmentWithEmotion(text=recognized_text,start_time=start_time,end_time=end_time,emotion=recognized_emotion)
-                return Segment(text=recognized_text, start_time=start_time, end_time=end_time)
+                # return Segment(text=recognized_text, start_time=start_time, end_time=end_time)
             
             except Exception as e:
                 print(f"第{i+1}次-片段转录失败（{start_time:.2f}-{end_time:.2f}）")
@@ -219,7 +219,7 @@ class ApiTranscriptionModel_V2(ApiTranscriptionModel):
         for it in chunk_info_list:
             path,_,_ = it
             Path(path).unlink(missing_ok=False)
-        return [Segment(text=seg.text, start_time=seg.start_time, end_time=seg.end_time) for seg in segments]
+        return segments
 
 class LocalModelFactory:
     @staticmethod
