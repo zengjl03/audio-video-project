@@ -13,7 +13,7 @@ import soundfile as sf
 import argparse
 import warnings
 warnings.filterwarnings("ignore")
-from core.utils import TranscriptionLocalModelConfig, TranscriptionAPIModelConfig, TranscriptionModel, Segment, SegmentWithSpk
+from core.utils import SegmentWithEmotion, TranscriptionLocalModelConfig, TranscriptionAPIModelConfig, TranscriptionModel, Segment, SegmentWithSpk
 torch.serialization.add_safe_globals([argparse.Namespace])
 from loguru import logger
 
@@ -162,18 +162,21 @@ class ApiTranscriptionModel(TranscriptionModel):
                 
                 output = response['output']['choices'][0]
                 recognized_text = None
+                recognized_emotion = None
                 
                 if len(output["message"]["content"]):
                     recognized_text = output["message"]["content"][0]["text"]
+                    recognized_emotion = output["message"]["annotations"][0]["emotion"]
                 
                 # 确保返回非None值
                 recognized_text = recognized_text.strip() if recognized_text else ""
+                return SegmentWithEmotion(text=recognized_text,start_time=start_time,end_time=end_time,emotion=recognized_emotion)
                 return Segment(text=recognized_text, start_time=start_time, end_time=end_time)
             
             except Exception as e:
                 print(f"第{i+1}次-片段转录失败（{start_time:.2f}-{end_time:.2f}）")
                 import time
-                time.sleep(1)
+                time.sleep(1.5)
         return Segment(text="", start_time=start_time, end_time=end_time)
 
     def _transcribe_chunks_parallel(self, chunk_info_list: List[Tuple[str, float, float]]) -> List[Segment]:

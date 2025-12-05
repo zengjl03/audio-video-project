@@ -48,6 +48,10 @@ class Segment:
 class SegmentWithSpk(Segment):
     spk_id:int
 
+@dataclass
+class SegmentWithEmotion(Segment):
+    emotion:str
+
 class TranscriptionModel(ABC):
     @abstractmethod
     def transcribe(self, audio_path: str) -> List[Segment]:

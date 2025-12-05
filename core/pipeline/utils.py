@@ -210,12 +210,14 @@ class OmniAudioUnderstandingMixin:
         
         for event in events:
             start, end = self._get_event_range(event)
+            logger.info(f'event: {event.title} --> start: {start}, end: {end}')
             if start is None:
                 rejected.append(event.model_dump())
                 continue
 
             is_funny = False
             for chunk in self._iter_chunks(audio, start, end):
+                # print(f'chunk: {chunk}')
                 payload = self._call_omni(client, chunk)
                 logger.info(f'event: {event.title} --> payload: {payload}')
                 if not payload:
@@ -228,6 +230,91 @@ class OmniAudioUnderstandingMixin:
             (passed if is_funny else rejected).append(event)
 
         return rejected, passed
+
+    def refine_events_with_omni(self, events: List[EventItem]) -> List[EventItem]:
+        """
+        对最终的事件列表做一次基于 omni 的精细处理：
+        - 仅处理时长大于 60 秒的事件
+        - 以 self._chunk_seconds 为窗口对事件内音频切片（当前为 20/30 秒）
+        - 若某个切片被判定为「有趣」，则在该切片基础上各向前、向后扩展 5 秒，
+          得到一个 [start, end] 有趣区间
+        - 同一事件中多个有趣区间如有重叠则进行合并；不重叠则分别保留
+        - 为每个不重叠有趣区间生成一个新的 EventItem，title 形如
+          `原标题 有趣点1`、`原标题 有趣点2` ...
+        """
+        if not events:
+            return []
+
+        client = self._get_omni_client()
+        audio = self._get_full_audio()
+        if client is None or audio is None:
+            # 如果 omni 不可用，直接返回原始结果
+            return events
+
+        refined_events: List[EventItem] = []
+
+        for event in events:
+            start, end = self._get_event_range(event)
+
+            duration = end - start
+            # 仅对大于 60 秒的事件做精细切分，其余直接保留
+            if duration <= 60:
+                refined_events.append(event)
+                continue
+
+            interesting_intervals: List[Tuple[float, float]] = []
+            chunk_seconds = self._chunk_seconds
+
+            offset = 0.0
+            while start + offset < end:
+                chunk_start = start + offset
+                chunk_end = min(chunk_start + chunk_seconds, end)
+
+                # 按绝对时间从整段音频中截取当前 chunk
+                segment = audio[int(chunk_start * 1000): int(chunk_end * 1000)]
+                if len(segment) == 0:
+                    break
+
+                payload = self._call_omni(client, segment)
+                logger.info(
+                    f"refine_events_with_omni | event: {event.title} | "
+                    f"chunk: [{chunk_start:.2f}, {chunk_end:.2f}] | payload: {payload}"
+                )
+
+                if payload and payload.get("emotion") == "有趣":
+                    # 在 chunk 的基础上前后各扩展 5 秒，限制在事件边界内
+                    interesting_start = max(start, chunk_start - 5.0)
+                    interesting_end = min(end, chunk_end + 5.0)
+                    if interesting_end > interesting_start:
+                        interesting_intervals.append((interesting_start, interesting_end))
+
+                offset += chunk_seconds
+
+            # 如果没有检测到任何有趣点，则保留原始事件
+            if not interesting_intervals:
+                # refined_events.append(event)
+                continue
+
+            # 合并重叠区间，确保得到的是互不重叠的多个有趣点
+            interesting_intervals.sort(key=lambda x: x[0])
+            merged_intervals: List[Tuple[float, float]] = []
+            for s, e in interesting_intervals:
+                if not merged_intervals or s > merged_intervals[-1][1]:
+                    merged_intervals.append([s, e])
+                else:
+                    # 有重叠则合并
+                    merged_intervals[-1][1] = max(merged_intervals[-1][1], e)
+
+            # 为每个有趣点生成一个新的 EventItem
+            base_data = event.model_dump()
+            for idx, (s, e) in enumerate(merged_intervals, start=1):
+                new_data = base_data.copy()
+                new_data["start_time"] = float(s)
+                new_data["end_time"] = float(e)
+                new_data["title"] = f"{event.title} 有趣点{idx}"
+                refined_events.append(EventItem(**new_data))
+
+        return refined_events
 
     def _get_omni_client(self):
         if hasattr(self, "_omni_client"):

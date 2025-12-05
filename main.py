@@ -9,7 +9,7 @@ load_dotenv()
 if __name__ == "__main__":
     from init import setup
     # 初始化
-    video_path = Path("video/微信视频2025-12-03_193819_529.mp4")
+    video_path = Path("video/test31.mp4")
 
     config = Config(
         # transcription_config=TranscriptionLocalModelConfig(model_name="paraformer-zh"),
@@ -18,7 +18,9 @@ if __name__ == "__main__":
             base_url=os.getenv("BASE_URL"),
             api_key=os.getenv("API_KEY"),
             model_name_config=AnalyzerModelNameConfig(
-                outline_model_name='gemini-2.5-flash-nothinking',
+                # outline_model_name='gemini-2.5-flash-nothinking',
+                outline_model_name='gpt-5',
+                # outline_model_name='gpt-4o-mini',
                 highlight_model_name='gpt-4o-mini'
             ),
             prompt_config=AnalyzerPromptConfig(

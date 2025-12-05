@@ -5,10 +5,9 @@ from core.utils import timer
 from core.utils import Config
 from core.transcription import TranscriptionManager
 from core.highlight import AnalyzerManager
-from core.pipeline.utils import OutlineExtractorMixin, HighlightExtractorMixin, OmniAudioUnderstandingMixin
 from typing import List, Tuple
 
-class PipelineProcessor(ABC, OutlineExtractorMixin, HighlightExtractorMixin, OmniAudioUnderstandingMixin):
+class PipelineProcessor(ABC):
     def __init__(self, config: Config):
         self.video_path = None
         self.editor = None
