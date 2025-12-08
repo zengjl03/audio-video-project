@@ -1,4 +1,4 @@
-from typing import List, Dict,Any, Tuple
+from typing import List, Dict,Any, Optional, Tuple
 from loguru import logger
 from tqdm import tqdm
 import json
@@ -192,7 +192,28 @@ class OmniAudioUnderstandingMixin:
         "只有当笑声或夸张语气很明显时才算有趣。"
         "请输出 JSON：{\"emotion\": \"\", \"reason\": \"\"}，emotion 只能是“有趣”或“无明显有趣”。"
     )
-    _chunk_seconds = 20
+    _prompt_v2 = (
+        "请仔细分析音频内容，识别其中是否存在明显的笑声、欢乐情绪或情绪激昂的片段。"
+        "判断标准：必须有清晰的笑声、明显的兴奋语气、高涨的情绪表达，或者欢快的氛围。"
+        "\n\n"
+        "输出要求：\n"
+        "1. 如果音频中存在这样的有趣片段，请：\n"
+        "   - emotion 设为 \"有趣\"\n"
+        "   - reason 描述具体的有趣内容和位置\n"
+        "   - start_time 和 end_time 精确标注有趣片段在音频中的起止时间（格式：MM:SS）\n"
+        "\n"
+        "2. 如果整段音频都没有明显的有趣片段，请：\n"
+        "   - emotion 设为 \"无明显有趣\"\n"
+        "   - reason 简要说明原因\n"
+        "   - start_time 设为 \"00:00\"\n"
+        "   - end_time 设为音频的总时长（格式：MM:SS）\n"
+        "\n"
+        "请严格按照以下 JSON 格式输出：\n"
+        "{\"emotion\": \"有趣\" 或 \"无明显有趣\", \"reason\": \"具体原因\", \"start_time\": \"MM:SS\", \"end_time\": \"MM:SS\"}"
+    )
+    _prompt = _prompt_v2
+
+    _chunk_seconds = 30
     _base64_limit = 20_000_000
     _model_name = "qwen3-omni-flash"
 
@@ -274,6 +295,148 @@ class OmniAudioUnderstandingMixin:
                 refined_events.append(EventItem(**new_data))
 
         return refined_events
+
+    def refine_events_with_omni_v2(self, events: List[EventItem]) -> List[EventItem]:
+        """
+        对最终的事件列表做一次基于 omni 的精细处理 (V2版本)：
+        - 仅处理时长大于 60 秒的事件
+        - 以 self._chunk_seconds 为窗口对事件内音频切片
+        - 若某个切片被判定为「有趣」，提取返回的 start_time 和 end_time
+        - 将切片内的相对时间转换为音频的绝对时间
+        - 在绝对时间基础上前后各扩展 5 秒
+        - 同一事件中多个有趣区间如有重叠则进行合并；不重叠则分别保留
+        - 为每个不重叠有趣区间生成一个新的 EventItem
+        """
+        if not events:
+            return []
+
+        client = self._get_omni_client()
+        audio = self._get_full_audio()
+        if client is None or audio is None:
+            return events
+
+        refined_events: List[EventItem] = []
+
+        for event in events:
+            start, end = self._get_event_range(event)
+            if start is None or end is None:
+                continue
+
+            interesting_intervals: List[Tuple[float, float]] = []
+            chunk_seconds = self._chunk_seconds
+
+            offset = 0.0
+            while start + offset < end:
+                chunk_start = start + offset
+                chunk_end = min(chunk_start + chunk_seconds, end)
+
+                # 按绝对时间从整段音频中截取当前 chunk
+                segment = audio[int(chunk_start * 1000): int(chunk_end * 1000)]
+                if len(segment) == 0:
+                    break
+
+                payload = self._call_omni(client, segment)
+                logger.info(
+                    f"refine_events_with_omni_v2 | event: {event.title} | "
+                    f"chunk: [{chunk_start:.2f}, {chunk_end:.2f}] | payload: {payload}"
+                )
+
+                if payload and payload.get("emotion") == "有趣":
+                    # 解析返回的时间
+                    relative_start = self._parse_time(payload.get("start_time", "00:00"))
+                    relative_end = self._parse_time(payload.get("end_time", "00:00"))
+                    
+                    if relative_start is not None and relative_end is not None:
+                        # 转换为音频的绝对时间
+                        # chunk_start 是这个切片在完整音频中的起始位置
+                        absolute_start = chunk_start + relative_start
+                        absolute_end = chunk_start + relative_end
+                        
+                        # 前后各扩展 5 秒，限制在事件边界内
+                        interesting_start = max(start, absolute_start - 5.0)
+                        interesting_end = min(end, absolute_end + 5.0)
+                        
+                        if interesting_end > interesting_start:
+                            interesting_intervals.append((interesting_start, interesting_end))
+                            logger.info(
+                                f"  -> 检测到有趣点: 相对时间 [{relative_start:.2f}s, {relative_end:.2f}s] "
+                                f"-> 绝对时间 [{absolute_start:.2f}s, {absolute_end:.2f}s] "
+                                f"-> 扩展后 [{interesting_start:.2f}s, {interesting_end:.2f}s]"
+                            )
+
+                offset += chunk_seconds
+
+            # 如果没有检测到任何有趣点，跳过该事件
+            if not interesting_intervals:
+                continue
+
+            # 合并重叠区间
+            interesting_intervals.sort(key=lambda x: x[0])
+            merged_intervals: List[Tuple[float, float]] = []
+            for s, e in interesting_intervals:
+                if not merged_intervals or s > merged_intervals[-1][1]:
+                    merged_intervals.append([s, e])
+                else:
+                    # 有重叠则合并
+                    merged_intervals[-1][1] = max(merged_intervals[-1][1], e)
+
+            logger.info(
+                f"事件 [{event.title}] 合并后的有趣区间: "
+                f"{[(f'{s:.2f}s', f'{e:.2f}s') for s, e in merged_intervals]}"
+            )
+
+            # 为每个有趣点生成一个新的 EventItem
+            base_data = event.model_dump()
+            for idx, (s, e) in enumerate(merged_intervals, start=1):
+                new_data = base_data.copy()
+                new_data["start_time"] = float(s)
+                new_data["end_time"] = float(e)
+                new_data["title"] = f"{event.title} 有趣点{idx}"
+                refined_events.append(EventItem(**new_data))
+
+        return refined_events
+
+    def _parse_time(self, time_str: str) -> Optional[float]:
+        """
+        解析时间字符串，支持多种格式：
+        - "MM:SS" (例如: "00:24")
+        - "HH:MM:SS" (例如: "00:00:24")
+        - 纯数字 (例如: "24" 或 24)
+        
+        返回秒数 (float)，解析失败返回 None
+        """
+        if not time_str:
+            return None
+        
+        try:
+            # 如果是数字类型，直接返回
+            if isinstance(time_str, (int, float)):
+                return float(time_str)
+            
+            # 如果是字符串
+            time_str = str(time_str).strip()
+            
+            # 纯数字字符串
+            if time_str.replace('.', '', 1).isdigit():
+                return float(time_str)
+            
+            # MM:SS 或 HH:MM:SS 格式
+            parts = time_str.split(':')
+            if len(parts) == 2:
+                # MM:SS
+                minutes, seconds = parts
+                return int(minutes) * 60 + float(seconds)
+            elif len(parts) == 3:
+                # HH:MM:SS
+                hours, minutes, seconds = parts
+                return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+            else:
+                logger.warning(f"无法解析时间格式: {time_str}")
+                return None
+                
+        except (ValueError, AttributeError) as e:
+            logger.warning(f"解析时间失败: {time_str}, 错误: {e}")
+            return None
 
     def _get_omni_client(self):
         if hasattr(self, "_omni_client"):

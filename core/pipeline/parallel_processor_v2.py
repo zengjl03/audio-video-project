@@ -56,7 +56,7 @@ class ParallelProcessor_V2(PipelineProcessor,OutlineExtractorMixin,OmniAudioUnde
             logger.warning("未识别出任何事件，终止后续处理")
             return
 
-        key_events = self.refine_events_with_omni(events)
+        key_events = self.refine_events_with_omni_v2(events)
         final_events = key_events[:]
         final_events = sorted(final_events, key=lambda x: x.start_time)
 
