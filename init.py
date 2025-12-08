@@ -11,7 +11,7 @@ def setup_logger(video_path: Union[str, Path]):
     log_dir = Path(os.getenv("LOG_DIR", "log"))
     log_prefix = os.getenv("LOG_PREFIX", "pipeline")
     video_stem = Path(video_path).stem
-    log_file = log_dir / f"{log_prefix}_{video_stem}_{time.strftime('%Y%m%d_%H%M%S')}.log"
+    log_file = log_dir / f"{log_prefix}_{time.strftime('%Y%m%d_%H%M%S')}_{video_stem}.log"
     os.makedirs(log_file.parent, exist_ok=True)
 
     # 重置 logger，避免重复添加 sink
