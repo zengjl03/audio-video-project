@@ -1,5 +1,6 @@
 from typing import List, Dict,Any, Optional, Tuple
 from loguru import logger
+import openai
 from tqdm import tqdm
 import json
 import os
@@ -211,7 +212,28 @@ class OmniAudioUnderstandingMixin:
         "请严格按照以下 JSON 格式输出：\n"
         "{\"emotion\": \"有趣\" 或 \"无明显有趣\", \"reason\": \"具体原因\", \"start_time\": \"MM:SS\", \"end_time\": \"MM:SS\"}"
     )
-    _prompt = _prompt_v2
+
+    _prompt_v3 = (
+        "请仔细分析音频内容，识别其中是否存在明显的笑声、欢乐情绪或情绪激昂的片段。"
+        "判断标准：必须有清晰的笑声、明显的兴奋语气、高涨的情绪表达，或者欢快的氛围。"
+        "特别注意，如果对话中出现'搞笑','有趣'，'激昂'等词，或者是配乐的声音，不能直接判定为有趣，因为这可能只是一段自然对话中的内容，一定要结合情绪本身加以判断是否有趣。"
+        "\n\n"
+        "输出要求：\n"
+        "1. 如果音频中存在这样的有趣片段，请：\n"
+        "   - emotion 设为 \"有趣\"\n"
+        "   - reason 描述具体的有趣内容和位置\n"
+        "   - start_time 和 end_time 精确标注有趣片段在音频中的起止时间（格式：MM:SS）\n"
+        "\n"
+        "2. 如果整段音频都没有明显的有趣片段，请：\n"
+        "   - emotion 设为 \"无明显有趣\"\n"
+        "   - reason 简要说明原因\n"
+        "   - start_time 设为 \"00:00\"\n"
+        "   - end_time 设为音频的总时长（格式：MM:SS）\n"
+        "\n"
+        "请严格按照以下 JSON 格式输出：\n"
+        "{\"emotion\": \"有趣\" 或 \"无明显有趣\", \"reason\": \"具体原因\", \"start_time\": \"MM:SS\", \"end_time\": \"MM:SS\"}"
+    )
+    _prompt = _prompt_v3
 
     _chunk_seconds = 30
     _base64_limit = 20_000_000
@@ -335,11 +357,15 @@ class OmniAudioUnderstandingMixin:
                 if len(segment) == 0:
                     break
 
-                payload = self._call_omni(client, segment)
-                logger.info(
-                    f"refine_events_with_omni_v2 | event: {event.title} | "
-                    f"chunk: [{chunk_start:.2f}, {chunk_end:.2f}] | payload: {payload}"
-                )
+                try:
+                    payload = self._call_omni(client, segment)
+                    logger.info(
+                        f"refine_events_with_omni_v2 | event: {event.title} | "
+                        f"chunk: [{chunk_start:.2f}, {chunk_end:.2f}] | payload: {payload}"
+                    )
+                except openai.BadRequestError as e:
+                    logger.error(f"omni 调用失败: {e}")
+                    break
 
                 if payload and payload.get("emotion") == "有趣":
                     # 解析返回的时间

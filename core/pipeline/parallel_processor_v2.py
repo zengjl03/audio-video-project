@@ -1,12 +1,11 @@
 from pathlib import Path
-from typing import List, Dict, Any, Tuple
+from typing import List, Tuple
 from loguru import logger
 from dotenv import load_dotenv
 from core.pipeline.base import PipelineProcessor
 from core.pipeline.utils import HighlightExtractorMixin, OmniAudioUnderstandingMixin, OutlineExtractorMixin
-from core.utils import Config, timer,Segment,EventItem,SegmentWithEmotion
+from core.utils import Config, timer,Segment,EventItem,SegmentWithEmotion,track_to_csv
 from core.extract import EditorManager
-import re
 
 from init import setup
 
@@ -19,21 +18,23 @@ class ParallelProcessor_V2(PipelineProcessor,OutlineExtractorMixin,OmniAudioUnde
             raise ValueError("segment_duration_minutes 不能为空")
         self.segment_duration_minutes = int(config.segment_duration_minutes)
 
+    @track_to_csv('final_events_v2.csv')
     @timer
     def process(self, video_path: Path) -> Tuple[List[str], List[str]]:
         setup(video_path)
+        names,descs = [],[]
         self.video_path = video_path
         self.editor = EditorManager(self.video_path)
         # 检查
         if not self.check_video(self.video_path):
-            return
+            return names,descs
         logger.info(f"开始处理视频: {self.video_path}")
 
         # 1. 提取整段音频
         audio_path = self.editor.extract_audio()
         if not audio_path:
             logger.error("音频提取失败，终止处理")
-            return
+            return names,descs
         # return
             
         self.audio_path = audio_path
@@ -42,7 +43,7 @@ class ParallelProcessor_V2(PipelineProcessor,OutlineExtractorMixin,OmniAudioUnde
         segments:List[Segment] = self.transcriber.transcribe(audio_path)
         if not segments:
             logger.error("音频转写失败，终止处理")
-            return
+            return names,descs
 
         logger.info(f"转写结果: {segments}")
         
@@ -54,17 +55,17 @@ class ParallelProcessor_V2(PipelineProcessor,OutlineExtractorMixin,OmniAudioUnde
         
         if not events:
             logger.warning("未识别出任何事件，终止后续处理")
-            return
+            return names,descs
 
         key_events = self.refine_events_with_omni_v2(events)
         final_events = key_events[:]
         final_events = sorted(final_events, key=lambda x: x.start_time)
+        # 将final_events存储到self中，供装饰器使用
+        self.final_events = final_events
 
         logger.info('--------------------------------')
         # logger.info(f'关键词筛选的事件: {happy_keywords_events}')
         logger.info(f'omni音频理解筛选的事件: {key_events}')
-
-        names,descs = [],[]
 
         # 5. 保存精彩片段
         for idx, clip in enumerate(final_events, 1):
@@ -77,5 +78,4 @@ class ParallelProcessor_V2(PipelineProcessor,OutlineExtractorMixin,OmniAudioUnde
                 descs.append(clip.title)
             except Exception as e:
                 logger.error(f"保存精彩片段失败: {outpath} --> {e}")
-
         return names,descs

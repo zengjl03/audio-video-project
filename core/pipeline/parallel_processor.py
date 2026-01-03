@@ -89,18 +89,19 @@ class ParallelProcessor(PipelineProcessor,OutlineExtractorMixin, HighlightExtrac
     @timer
     def process(self, video_path: Path) -> Tuple[List[str], List[str]]:
         setup(video_path)
+        names,descs = [],[]
         self.video_path = video_path
         self.editor = EditorManager(self.video_path)
         # 检查
         if not self.check_video(self.video_path):
-            return
+            return names,descs
         logger.info(f"开始处理视频: {self.video_path}")
 
         # 1. 提取整段音频
         audio_path = self.editor.extract_audio()
         if not audio_path:
             logger.error("音频提取失败，终止处理")
-            return
+            return names,descs
         # return
             
         self.audio_path = audio_path
@@ -109,7 +110,7 @@ class ParallelProcessor(PipelineProcessor,OutlineExtractorMixin, HighlightExtrac
         segments:List[Segment] = self.transcriber.transcribe(audio_path)
         if not segments:
             logger.error("音频转写失败，终止处理")
-            return
+            return names,descs
 
         logger.info(f"转写结果: {segments}")
         
@@ -120,7 +121,7 @@ class ParallelProcessor(PipelineProcessor,OutlineExtractorMixin, HighlightExtrac
         
         if not events:
             logger.warning("未识别出任何事件，终止后续处理")
-            return
+            return names,descs
 
         # 这里加一个插件，手动地实现这个哈哈大笑关键词的捕捉
         # final_events,non_happy_events = [],events
@@ -176,8 +177,6 @@ class ParallelProcessor(PipelineProcessor,OutlineExtractorMixin, HighlightExtrac
         #             writer.writerow([self.video_path.stem, event.get('start_time'), event.get('end_time')])
         #     else:
         #         writer.writerow([self.video_path.stem, 'None', 'None'])
-
-        names,descs = [],[]
 
         # 5. 保存精彩片段
         for idx, clip in enumerate(final_events, 1):

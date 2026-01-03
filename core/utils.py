@@ -1,11 +1,13 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, List, Literal
+from typing import List, Literal
 from loguru import logger
 import time
 from functools import wraps
 from pathlib import Path
 from pydantic import BaseModel, Field
+import csv
+from typing import Callable
 
 class EventItem(BaseModel):
     title: str = Field(description="事件的简短标题，描述这个事件的核心，长度需控制在4-8个汉字或16个字符以内")
@@ -37,6 +39,27 @@ def timer(func):
         logger.info(f"函数 {func.__name__} 执行完成，耗时: {elapsed_time:.6f} 秒")
         return result
     return wrapper
+
+def track_to_csv(csv_filename: str = 'final_events.csv'):
+    """装饰器：确保process方法执行后无论成功失败都写入CSV文件"""
+    print('111')
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(self, video_path: Path, *args, **kwargs):
+            # 初始化final_events为None，用于跟踪处理结果
+            self.final_events = None
+            # 执行原始的process方法
+            result = func(self, video_path, *args, **kwargs)
+            with open(csv_filename, 'a', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                if self.final_events is not None:
+                    for clip in self.final_events:
+                        writer.writerow([self.video_path.stem, clip.start_time, clip.end_time])
+                else:
+                    writer.writerow([self.video_path.stem, 'None', 'None'])
+            return result
+        return wrapper
+    return decorator
 
 @dataclass
 class Segment:

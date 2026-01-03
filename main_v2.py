@@ -9,7 +9,7 @@ load_dotenv()
 if __name__ == "__main__":
     # 初始化
     # video_path = Path("video/微信视频2025-12-03_193819_529.mp4")
-    video_path = Path("video/微信视频2025-12-08_131449_460.mp4")
+    video_path = Path("video/test1.mp4")
 
     config = Config(
         # transcription_config=TranscriptionLocalModelConfig(model_name="paraformer-zh"),

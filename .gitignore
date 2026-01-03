@@ -22,3 +22,4 @@ httpServer.py
 videoProcessor.py
 v0init.py
 nohup.out
+*.csv
