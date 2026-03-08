@@ -40,7 +40,7 @@ def timer(func):
         return result
     return wrapper
 
-def track_to_csv(csv_filename: str = 'final_events.csv'):
+def track_to_csv(csv_filename: str = 'result/process_log.csv'):
     """装饰器：确保process方法执行后无论成功失败都写入CSV文件"""
     print('111')
     def decorator(func: Callable) -> Callable:

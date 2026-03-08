@@ -18,7 +18,7 @@ class ParallelProcessor_V2(PipelineProcessor,OutlineExtractorMixin,OmniAudioUnde
             raise ValueError("segment_duration_minutes 不能为空")
         self.segment_duration_minutes = int(config.segment_duration_minutes)
 
-    @track_to_csv('final_events_v2.csv')
+    @track_to_csv('result/process_log.csv')
     @timer
     def process(self, video_path: Path) -> Tuple[List[str], List[str]]:
         setup(video_path)
