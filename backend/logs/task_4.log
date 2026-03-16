@@ -1,0 +1,272 @@
+[2026-03-09 18:29:50] [INFO] task start: 1773052165786-80912724-test14mp4_test14.mp4
+[2026-03-09 18:29:50] [PROGRESS] processing 5% 初始化配置...
+[2026-03-09 18:29:50] [PROGRESS] processing 10% 正在提取音频...
+2026-03-09 18:29:51.322 | INFO     | core.extract:extract_audio:54 - Extracted: E:\code\打工\audio-video-project\audio\1773052165786-80912724-test14mp4_test14.wav
+[2026-03-09 18:29:51] [PROGRESS] processing 25% 正在语音转写（ASR）...
+[2026-03-09 18:30:06] [PROGRESS] processing 50% LLM 分析事件结构...
+2026-03-09 18:30:06.909 | INFO     | core.pipeline.utils:extract_outline:119 - 开始识别完整事件...
+2026-03-09 18:30:06.910 | INFO     | core.pipeline.utils:extract_outline:132 - 转写结果按约 30 分钟切分，共 1 个块
+2026-03-09 18:30:06.910 | INFO     | core.pipeline.utils:extract_outline:136 - 处理第 1/1 个块...
+2026-03-09 18:30:06.910 | INFO     | core.pipeline.utils:extract_outline:150 - 正在分析第 1 个块，包含 17 个转录片段...
+2026-03-09 18:30:14.214 | INFO     | core.pipeline.utils:extract_outline:157 - 第 1 个块识别出 5 个事件
+2026-03-09 18:30:14.216 | INFO     | core.pipeline.utils:extract_outline:159 - 事件识别完成，共识别出 5 个完整事件
+[2026-03-09 18:30:14] [PROGRESS] processing 70% Omni 音频情绪筛选（共 5 个事件）...
+[2026-03-09 18:30:14] [PROGRESS] processing 85% 正在裁剪 5 个精彩片段...
+2026-03-09 18:30:14.266 | ERROR    | core.extract:crop_video:86 - FFmpeg crop error (return code 4294967274)
+[2026-03-09 18:30:14] [ERROR] task failed: Command '['ffmpeg', '-ss', '0.0', '-to', '0.0', '-i', 'E:\\code\\打工\\audio-video-project\\backend\\uploads\\1773052165786-80912724-test14mp4_test14.mp4', '-c:v', 'copy', '-c:a', 'copy', '-copyts', '-y', 'E:\\code\\打工\\audio-video-project\\backend\\results\\clip_1773052165786-80912724-test14mp4_test14_01.mp4']' returned non-zero exit status 4294967274.
+2026-03-09 18:30:14.267 | ERROR    | backend.web.tasks:_run_video_pipeline:178 - task 4 failed: Command '['ffmpeg', '-ss', '0.0', '-to', '0.0', '-i', 'E:\\code\\打工\\audio-video-project\\backend\\uploads\\1773052165786-80912724-test14mp4_test14.mp4', '-c:v', 'copy', '-c:a', 'copy', '-copyts', '-y', 'E:\\code\\打工\\audio-video-project\\backend\\results\\clip_1773052165786-80912724-test14mp4_test14_01.mp4']' returned non-zero exit status 4294967274.
+Traceback (most recent call last):
+
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\__main__.py", line 19, in <module>
+    main()
+    └ <function main at 0x0000026F0AD8FB00>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\__main__.py", line 15, in main
+    sys.exit(_main())
+    │   │    └ <function main at 0x0000026F0E6D8400>
+    │   └ <built-in function exit>
+    └ <module 'sys' (built-in)>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\bin\celery.py", line 236, in main
+    return celery(auto_envvar_prefix="CELERY")
+           └ <DYMGroup celery>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\click\core.py", line 1485, in __call__
+    return self.main(*args, **kwargs)
+           │    │     │       └ {'auto_envvar_prefix': 'CELERY'}
+           │    │     └ ()
+           │    └ <function Command.main at 0x0000026F0D6080E0>
+           └ <DYMGroup celery>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\click\core.py", line 1406, in main
+    rv = self.invoke(ctx)
+         │    │      └ <click.core.Context object at 0x0000026F0E6EC8D0>
+         │    └ <function Group.invoke at 0x0000026F0D608FE0>
+         └ <DYMGroup celery>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\click\core.py", line 1873, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+           │               │       │       │      └ <click.core.Context object at 0x0000026F0D7A2310>
+           │               │       │       └ <function Command.invoke at 0x0000026F0D5F3D80>
+           │               │       └ <CeleryDaemonCommand worker>
+           │               └ <click.core.Context object at 0x0000026F0D7A2310>
+           └ <function Group.invoke.<locals>._process_result at 0x0000026F0AD9C040>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\click\core.py", line 1269, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           │   │      │    │           │   └ {'loglevel': 20, 'queues': ['video_processing'], 'pool': <class 'celery.concurrency.solo.TaskPool'>, 'hostname': 'celery@LAPT...
+           │   │      │    │           └ <click.core.Context object at 0x0000026F0D7A2310>
+           │   │      │    └ <function worker at 0x0000026F0E6D96C0>
+           │   │      └ <CeleryDaemonCommand worker>
+           │   └ <function Context.invoke at 0x0000026F0D5F2FC0>
+           └ <click.core.Context object at 0x0000026F0D7A2310>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\click\core.py", line 824, in invoke
+    return callback(*args, **kwargs)
+           │         │       └ {'loglevel': 20, 'queues': ['video_processing'], 'pool': <class 'celery.concurrency.solo.TaskPool'>, 'hostname': 'celery@LAPT...
+           │         └ ()
+           └ <function worker at 0x0000026F0E6D96C0>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\click\decorators.py", line 34, in new_func
+    return f(get_current_context(), *args, **kwargs)
+           │ │                       │       └ {'loglevel': 20, 'queues': ['video_processing'], 'pool': <class 'celery.concurrency.solo.TaskPool'>, 'hostname': 'celery@LAPT...
+           │ │                       └ ()
+           │ └ <function get_current_context at 0x0000026F0D5D9940>
+           └ <function worker at 0x0000026F0E6D9620>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\bin\base.py", line 135, in caller
+    return f(ctx, *args, **kwargs)
+           │ │     │       └ {'loglevel': 20, 'queues': ['video_processing'], 'pool': <class 'celery.concurrency.solo.TaskPool'>, 'hostname': 'celery@LAPT...
+           │ │     └ ()
+           │ └ <click.core.Context object at 0x0000026F0D7A2310>
+           └ <function worker at 0x0000026F0E6D9580>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\bin\worker.py", line 356, in worker
+    worker.start()
+    │      └ <function WorkController.start at 0x0000026F0E5CE700>
+    └ <Worker: celery@LAPTOP-8LB6U8O0 (running)>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\worker\worker.py", line 202, in start
+    self.blueprint.start(self)
+    │    │         │     └ <Worker: celery@LAPTOP-8LB6U8O0 (running)>
+    │    │         └ <function Blueprint.start at 0x0000026F0E59E7A0>
+    │    └ <celery.worker.worker.WorkController.Blueprint object at 0x0000026F0EB88950>
+    └ <Worker: celery@LAPTOP-8LB6U8O0 (running)>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\bootsteps.py", line 116, in start
+    step.start(parent)
+    │    │     └ <Worker: celery@LAPTOP-8LB6U8O0 (running)>
+    │    └ <function StartStopStep.start at 0x0000026F0E59FA60>
+    └ <step: Consumer>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\bootsteps.py", line 365, in start
+    return self.obj.start()
+           │    │   └ <function Consumer.start at 0x0000026F0EB8FD80>
+           │    └ <Consumer: celery@LAPTOP-8LB6U8O0 (running)>
+           └ <step: Consumer>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\worker\consumer\consumer.py", line 340, in start
+    blueprint.start(self)
+    │         │     └ <Consumer: celery@LAPTOP-8LB6U8O0 (running)>
+    │         └ <function Blueprint.start at 0x0000026F0E59E7A0>
+    └ <celery.worker.consumer.consumer.Consumer.Blueprint object at 0x0000026F0EBBA810>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\bootsteps.py", line 116, in start
+    step.start(parent)
+    │    │     └ <Consumer: celery@LAPTOP-8LB6U8O0 (running)>
+    │    └ <function Evloop.start at 0x0000026F0EBB1080>
+    └ <step: event loop>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\worker\consumer\consumer.py", line 746, in start
+    c.loop(*c.loop_args())
+    │ │     │ └ <function Consumer.loop_args at 0x0000026F0EBB02C0>
+    │ │     └ <Consumer: celery@LAPTOP-8LB6U8O0 (running)>
+    │ └ <function synloop at 0x0000026F0EB8F560>
+    └ <Consumer: celery@LAPTOP-8LB6U8O0 (running)>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\worker\loops.py", line 130, in synloop
+    connection.drain_events(timeout=2.0)
+    │          └ <function Connection.drain_events at 0x0000026F0D438400>
+    └ <Connection: redis://:**@127.0.0.1:6379/0 at 0x26f0ec1ddd0>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\kombu\connection.py", line 343, in drain_events
+    return self.transport.drain_events(self.connection, **kwargs)
+           │    │                      │    │             └ {'timeout': 2.0}
+           │    │                      │    └ <property object at 0x0000026F0D429210>
+           │    │                      └ <Connection: redis://:**@127.0.0.1:6379/0 at 0x26f0ec1ddd0>
+           │    └ <property object at 0x0000026F0D429350>
+           └ <Connection: redis://:**@127.0.0.1:6379/0 at 0x26f0ec1ddd0>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\kombu\transport\virtual\base.py", line 997, in drain_events
+    get(self._deliver, timeout=timeout)
+    │   │    │                 └ 2.0
+    │   │    └ <function Transport._deliver at 0x0000026F0EB83600>
+    │   └ <kombu.transport.redis.Transport object at 0x0000026F0EC1E150>
+    └ <bound method MultiChannelPoller.get of <kombu.transport.redis.MultiChannelPoller object at 0x0000026F0EC1E210>>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\kombu\transport\redis.py", line 601, in get
+    ret = self.handle_event(fileno, event)
+          │    │            │       └ 1
+          │    │            └ 1172
+          │    └ <function MultiChannelPoller.handle_event at 0x0000026F0EB85C60>
+          └ <kombu.transport.redis.MultiChannelPoller object at 0x0000026F0EC1E210>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\kombu\transport\redis.py", line 583, in handle_event
+    return self.on_readable(fileno), self
+           │    │           │        └ <kombu.transport.redis.MultiChannelPoller object at 0x0000026F0EC1E210>
+           │    │           └ 1172
+           │    └ <function MultiChannelPoller.on_readable at 0x0000026F0EB85BC0>
+           └ <kombu.transport.redis.MultiChannelPoller object at 0x0000026F0EC1E210>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\kombu\transport\redis.py", line 579, in on_readable
+    chan.handlers[type]()
+    │    │        └ 'BRPOP'
+    │    └ {'BRPOP': <bound method Channel._brpop_read of <kombu.transport.redis.Channel object at 0x0000026F0EC1E250>>, 'LISTEN': <boun...
+    └ <kombu.transport.redis.Channel object at 0x0000026F0EC1E250>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\kombu\transport\redis.py", line 994, in _brpop_read
+    self.connection._deliver(loads(bytes_to_str(item)), dest)
+    │    │          │        │     │            │       └ 'video_processing'
+    │    │          │        │     │            └ b'{"body": "W1s0XSwge30sIHsiY2FsbGJhY2tzIjogbnVsbCwgImVycmJhY2tzIjogbnVsbCwgImNoYWluIjogbnVsbCwgImNob3JkIjogbnVsbH1d", "conte...
+    │    │          │        │     └ <function bytes_to_str at 0x0000026F0D38C7C0>
+    │    │          │        └ <function loads at 0x0000026F0D43E3E0>
+    │    │          └ <function Transport._deliver at 0x0000026F0EB83600>
+    │    └ <kombu.transport.redis.Transport object at 0x0000026F0EC1E150>
+    └ <kombu.transport.redis.Channel object at 0x0000026F0EC1E250>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\kombu\transport\virtual\base.py", line 1017, in _deliver
+    callback(message)
+    │        └ {'body': 'W1s0XSwge30sIHsiY2FsbGJhY2tzIjogbnVsbCwgImVycmJhY2tzIjogbnVsbCwgImNoYWluIjogbnVsbCwgImNob3JkIjogbnVsbH1d', 'content...
+    └ <function Channel.basic_consume.<locals>._callback at 0x0000026F0EC85A80>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\kombu\transport\virtual\base.py", line 639, in _callback
+    return callback(message)
+           │        └ <Message object at 0x26f0ec34560 with details {'state': 'RECEIVED', 'content_type': 'application/json', 'delivery_tag': '118f...
+           └ <bound method Consumer._receive_callback of <Consumer: [<Queue video_processing -> <Exchange video_processing(direct) bound t...
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\kombu\messaging.py", line 668, in _receive_callback
+    return on_m(message) if on_m else self.receive(decoded, message)
+           │    │           │         │    │       │        └ <Message object at 0x26f0ec34560 with details {'state': 'RECEIVED', 'content_type': 'application/json', 'delivery_tag': '118f...
+           │    │           │         │    │       └ None
+           │    │           │         │    └ <function Consumer.receive at 0x0000026F0D742E80>
+           │    │           │         └ <Consumer: [<Queue video_processing -> <Exchange video_processing(direct) bound to chan:1> -> video_processing bound to chan:...
+           │    │           └ <function Consumer.create_task_handler.<locals>.on_task_received at 0x0000026F0EC85BC0>
+           │    └ <Message object at 0x26f0ec34560 with details {'state': 'RECEIVED', 'content_type': 'application/json', 'delivery_tag': '118f...
+           └ <function Consumer.create_task_handler.<locals>.on_task_received at 0x0000026F0EC85BC0>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\worker\consumer\consumer.py", line 685, in on_task_received
+    strategy(
+    └ <function default.<locals>.task_message_handler at 0x0000026F0EC84220>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\worker\strategy.py", line 207, in task_message_handler
+    handle(req)
+    │      └ <Request: backend.process_video_task[4b943b4b-9aae-4ced-864e-cd895b2fe589] (4,) {}>
+    └ <bound method WorkController._process_task of <Worker: celery@LAPTOP-8LB6U8O0 (running)>>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\worker\worker.py", line 225, in _process_task
+    req.execute_using_pool(self.pool)
+    │   │                  │    └ <celery.concurrency.solo.TaskPool object at 0x0000026F0EB8B5D0>
+    │   │                  └ <Worker: celery@LAPTOP-8LB6U8O0 (running)>
+    │   └ <function create_request_cls.<locals>.Request.execute_using_pool at 0x0000026F0EC842C0>
+    └ <Request: backend.process_video_task[4b943b4b-9aae-4ced-864e-cd895b2fe589] (4,) {}>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\worker\request.py", line 754, in execute_using_pool
+    result = apply_async(
+             └ <bound method BasePool.apply_async of <celery.concurrency.solo.TaskPool object at 0x0000026F0EB8B5D0>>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\concurrency\base.py", line 153, in apply_async
+    return self.on_apply(target, args, kwargs,
+           │    │        │       │     └ {}
+           │    │        │       └ ('backend.process_video_task', '4b943b4b-9aae-4ced-864e-cd895b2fe589', {'lang': 'py', 'task': 'backend.process_video_task', '...
+           │    │        └ <function fast_trace_task at 0x0000026F0E65F4C0>
+           │    └ <function apply_target at 0x0000026F0D682980>
+           └ <celery.concurrency.solo.TaskPool object at 0x0000026F0EB8B5D0>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\concurrency\base.py", line 30, in apply_target
+    ret = target(*args, **kwargs)
+          │       │       └ {}
+          │       └ ('backend.process_video_task', '4b943b4b-9aae-4ced-864e-cd895b2fe589', {'lang': 'py', 'task': 'backend.process_video_task', '...
+          └ <function fast_trace_task at 0x0000026F0E65F4C0>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\app\trace.py", line 651, in fast_trace_task
+    R, I, T, Rstr = tasks[task].__trace__(
+                    │     └ 'backend.process_video_task'
+                    └ {'celery.group': <@task: celery.group of audio_video_project at 0x26f0e6ece50>, 'celery.map': <@task: celery.map of audio_vid...
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\app\trace.py", line 453, in trace_task
+    R = retval = fun(*args, **kwargs)
+                 │    │       └ {}
+                 │    └ [4]
+                 └ <@task: backend.process_video_task of audio_video_project at 0x26f0e6ece50>
+  File "E:\code\打工\audio-video-project\.venv\Lib\site-packages\celery\app\trace.py", line 736, in __protected_call__
+    return self.run(*args, **kwargs)
+           │    │    │       └ {}
+           │    │    └ (4,)
+           │    └ <staticmethod(<function process_video_task at 0x0000026F0EB0D3A0>)>
+           └ <@task: backend.process_video_task of audio_video_project at 0x26f0e6ece50>
+
+  File "E:\code\打工\audio-video-project\backend\web\tasks.py", line 189, in process_video_task
+    _run_video_pipeline(task_id)
+    │                   └ 4
+    └ <function _run_video_pipeline at 0x0000026F0EB0D300>
+
+> File "E:\code\打工\audio-video-project\backend\web\tasks.py", line 171, in _run_video_pipeline
+    processor.process(video_path)
+    │         │       └ WindowsPath('E:/code/打工/audio-video-project/backend/uploads/1773052165786-80912724-test14mp4_test14.mp4')
+    │         └ <function _run_video_pipeline.<locals>.ProgressProcessor.process at 0x0000026F74E21D00>
+    └ <backend.web.tasks._run_video_pipeline.<locals>.ProgressProcessor object at 0x0000026F74E3E850>
+
+  File "E:\code\打工\audio-video-project\backend\web\tasks.py", line 153, in process
+    self.editor.crop_video(outpath, clip.start_time, clip.end_time)
+    │    │      │          │        │    │           │    └ 0.0
+    │    │      │          │        │    │           └ EventItem(title='事件', description='', start_time=0.0, end_time=0.0, content='', scene='孩子在自己房间独立安排时间和任务', recommendation='可以尝...
+    │    │      │          │        │    └ 0.0
+    │    │      │          │        └ EventItem(title='事件', description='', start_time=0.0, end_time=0.0, content='', scene='孩子在自己房间独立安排时间和任务', recommendation='可以尝...
+    │    │      │          └ WindowsPath('E:/code/打工/audio-video-project/backend/results/clip_1773052165786-80912724-test14mp4_test14_01.mp4')
+    │    │      └ <function EditorManager.crop_video at 0x0000026F5ECBFB00>
+    │    └ <core.extract.EditorManager object at 0x0000026F74E3F290>
+    └ <backend.web.tasks._run_video_pipeline.<locals>.ProgressProcessor object at 0x0000026F74E3E850>
+
+  File "E:\code\打工\audio-video-project\core\extract.py", line 87, in crop_video
+    raise e
+
+  File "E:\code\打工\audio-video-project\core\extract.py", line 77, in crop_video
+    subprocess.run(
+    │          └ <function run at 0x0000026F0BD11620>
+    └ <module 'subprocess' from 'D:\\python311\\Lib\\subprocess.py'>
+
+  File "D:\python311\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+          │                  │        │       └ ['ffmpeg', '-ss', '0.0', '-to', '0.0', '-i', 'E:\\code\\打工\\audio-video-project\\backend\\uploads\\1773052165786-80912724-tes...
+          │                  │        └ <Popen: returncode: 4294967274 args: ['ffmpeg', '-ss', '0.0', '-to', '0.0', ...>
+          │                  └ 4294967274
+          └ <class 'subprocess.CalledProcessError'>
+
+subprocess.CalledProcessError: Command '['ffmpeg', '-ss', '0.0', '-to', '0.0', '-i', 'E:\\code\\打工\\audio-video-project\\backend\\uploads\\1773052165786-80912724-test14mp4_test14.mp4', '-c:v', 'copy', '-c:a', 'copy', '-copyts', '-y', 'E:\\code\\打工\\audio-video-project\\backend\\results\\clip_1773052165786-80912724-test14mp4_test14_01.mp4']' returned non-zero exit status 4294967274.
+[2026-03-09 18:30:14] [PROGRESS] failed 0% 处理失败: Command '['ffmpeg', '-ss', '0.0', '-to', '0.0', '-i', 'E:\\code\\打工\\audio-video-project\\backend\\uploads\\1773052165786-80912724-test14mp4_test14.mp4', '-c:v', 'copy', '-c:a', 'copy', '-copyts', '-y', 'E:\\code\\打工\\audio-video-project\\backend\\results\\clip_1773052165786-80912724-test14mp4_test14_01.mp4']' returned non-zero exit status 4294967274.
+[2026-03-09 20:10:39] [INFO] task start: 1773052165786-80912724-test14mp4_test14.mp4
+[2026-03-09 20:10:39] [PROGRESS] processing 5% 初始化配置...
+[2026-03-09 20:10:39] [PROGRESS] processing 10% 正在提取音频...
+2026-03-09 20:10:39.790 | INFO     | core.extract:extract_audio:19 - Audio already exists: E:\code\打工\audio-video-project\audio\1773052165786-80912724-test14mp4_test14.wav
+2026-03-09 20:10:40.327 | INFO     | core.extract:extract_audio:54 - Extracted: E:\code\打工\audio-video-project\audio\1773052165786-80912724-test14mp4_test14.wav
+[2026-03-09 20:10:40] [PROGRESS] processing 25% 正在语音转写（ASR）...
+[2026-03-09 20:10:57] [PROGRESS] processing 50% LLM 分析事件结构...
+2026-03-09 20:10:57.063 | INFO     | core.pipeline.utils:extract_outline:119 - 开始识别完整事件...
+2026-03-09 20:10:57.064 | INFO     | core.pipeline.utils:extract_outline:132 - 转写结果按约 30 分钟切分，共 1 个块
+2026-03-09 20:10:57.064 | INFO     | core.pipeline.utils:extract_outline:136 - 处理第 1/1 个块...
+2026-03-09 20:10:57.066 | INFO     | core.pipeline.utils:extract_outline:150 - 正在分析第 1 个块，包含 17 个转录片段...
+2026-03-09 20:11:15.365 | INFO     | core.pipeline.utils:extract_outline:157 - 第 1 个块识别出 1 个事件
+2026-03-09 20:11:15.366 | INFO     | core.pipeline.utils:extract_outline:159 - 事件识别完成，共识别出 1 个完整事件
+[2026-03-09 20:11:15] [PROGRESS] processing 70% Omni 音频情绪筛选（共 1 个事件）...
+[2026-03-09 20:11:15] [PROGRESS] processing 85% 正在裁剪 1 个精彩片段...
+2026-03-09 20:11:15.518 | INFO     | core.extract:crop_video:83 - ['ffmpeg', '-ss', '0.0', '-to', '318.0', '-i', 'E:\\code\\打工\\audio-video-project\\backend\\uploads\\1773052165786-80912724-test14mp4_test14.mp4', '-c:v', 'copy', '-c:a', 'copy', '-copyts', '-y', 'E:\\code\\打工\\audio-video-project\\backend\\results\\clip_1773052165786-80912724-test14mp4_test14_01.mp4']
+2026-03-09 20:11:15.519 | INFO     | core.extract:crop_video:84 - Cropped: E:\code\打工\audio-video-project\backend\results\clip_1773052165786-80912724-test14mp4_test14_01.mp4
+[2026-03-09 20:11:15] [PROGRESS] done 100% 处理完成，共 1 个精彩片段

@@ -5,10 +5,10 @@ from loguru import logger
 from core.utils import AnalyzerAPIModelConfig, AnalyzerLocalModelConfig
 from typing import Literal, Any, TypedDict
 import json
+import re
 from openai import OpenAI
 from functools import lru_cache
 from core.utils import OutlineResponse, HighlightResponse
-import re
 
 load_dotenv()
 
@@ -80,50 +80,20 @@ class AnalyzerManager:
             base_url=self.config.base_url,
         )
 
-    def _parse_json(self, content: str) -> dict:
-        """解析 JSON 内容，处理常见格式问题"""
-        # 提取 markdown 代码块中的 JSON
-        json_match = re.search(r"```(?:json)?\s*(.+?)\s*```", content, re.DOTALL)
-        if json_match:
-            content = json_match.group(1)
-        
-        # 清洗格式问题
-        cleaned = content.strip()
-        cleaned = re.sub(r",\s*[}\]](?=\s*$)", "", cleaned)  # 移除末尾多余逗号
-        cleaned = re.sub(r'"(start_time|end_time)":\s*"([0-9.]+)"', r'"\1": \2', cleaned)  # 修复时间字段类型
-        
+    def _loads_json(self, raw_content: str) -> Any:
+        s = raw_content.strip()
+        if not s:
+            return None
+        if s.startswith("```"):
+            s = re.sub(r"^```[a-zA-Z0-9_-]*\s*", "", s)
+            s = re.sub(r"\s*```$", "", s)
+            s = s.strip()
+        if s == "null":
+            return None
         try:
-            return json.loads(cleaned)
+            return json.loads(s)
         except json.JSONDecodeError:
-            logger.warning("JSON 解析失败，返回空结构")
-            return {}
-    
-    def _fix_parsed_json(self, parsed_json: dict, response_model: type) -> dict:
-        """修复解析后的 JSON，确保符合 Pydantic 模型要求"""
-        if response_model == OutlineResponse:
-            if not isinstance(parsed_json, dict):
-                parsed_json = {}
-            # 确保 events 字段存在且是列表
-            if "events" not in parsed_json:
-                parsed_json["events"] = []
-            elif not isinstance(parsed_json["events"], list):
-                parsed_json["events"] = []
-            # 修复每个 event 的字段
-            for event in parsed_json["events"]:
-                if isinstance(event, dict):
-                    # 确保时间字段是数字类型
-                    for time_key in ["start_time", "end_time"]:
-                        if time_key in event and isinstance(event[time_key], str):
-                            try:
-                                event[time_key] = float(event[time_key])
-                            except (ValueError, TypeError):
-                                event[time_key] = 0.0
-        elif response_model == HighlightResponse:
-            if not isinstance(parsed_json, dict):
-                parsed_json = {}
-            parsed_json.setdefault("is_highlight", False)
-            parsed_json.setdefault("reason", "")
-        return parsed_json
+            return None
 
     def _analyze_api(self, text, cfg):
         """
@@ -133,9 +103,23 @@ class AnalyzerManager:
         response_model = cfg["response_model"]
         model_name = getattr(self.config.model_name_config, cfg["model_name_attr"])
         prompt_path = getattr(self.config.prompt_config, cfg["prompt_attr"])
+
+        if response_model is None:
+            raise ValueError("response_model 不能为空")
+        if not model_name:
+            logger.error("未配置模型名称，将使用默认值")
+            return self._get_default_response(response_model)
+        if not prompt_path:
+            logger.error("未配置 prompt 路径，将使用默认值")
+            return self._get_default_response(response_model)
         
-        # 构建消息
-        system_prompt = self._load_system_prompt(prompt_path)
+        # 构建消息（在系统提示中直接加入 JSON 约束，既满足 OpenAI 要求又保持简洁）
+        base_system_prompt = self._load_system_prompt(prompt_path)
+        json_constraint = (
+            "你必须仅输出一个 JSON 对象（json），"
+            "不要包含额外文本、说明、注释或代码块标记（例如 ```json）。"
+        )
+        system_prompt = f"{base_system_prompt.rstrip()}\n\n附加要求（必须遵守）：\n{json_constraint}"
         user_content = json.dumps(text, ensure_ascii=False, indent=2)
         
         client = self._create_openai_client()
@@ -145,10 +129,10 @@ class AnalyzerManager:
             model=model_name,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_content}
+                {"role": "user", "content": user_content},
             ],
             response_format={"type": "json_object"},
-            temperature=0.0,
+            temperature=1.0,
             max_tokens=4096,
         )
         
@@ -159,20 +143,16 @@ class AnalyzerManager:
             return self._get_default_response(response_model)
         
         # 解析 JSON
-        try:
-            parsed_json = json.loads(raw_content.strip())
-        except json.JSONDecodeError:
-            parsed_json = self._parse_json(raw_content)
-        
-        # 修复常见问题
-        parsed_json = self._fix_parsed_json(parsed_json, response_model)
-        
-        # 验证并转换为 Pydantic 模型
+        parsed_json = self._loads_json(raw_content)
+        if parsed_json is None:
+            logger.error("JSON 解析失败或返回 null，将使用默认值")
+            return self._get_default_response(response_model)
+
+        # 验证并转换为 Pydantic 模型，失败就回退到默认值
         try:
             return response_model.model_validate(parsed_json)
         except ValidationError as e:
-            logger.error(f"Pydantic 验证失败: {e.errors()}")
-            # 最后尝试：返回默认响应
+            logger.error(f"Pydantic 验证失败，将使用默认值: {e.errors()}")
             return self._get_default_response(response_model)
     
     def _get_default_response(self, response_model: type):

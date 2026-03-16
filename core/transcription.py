@@ -216,9 +216,6 @@ class ApiTranscriptionModel_V2(ApiTranscriptionModel):
     def transcribe(self, audio_path: str) -> List[Segment]:
         chunk_info_list = self._process_vad(audio_path)
         segments = self._transcribe_chunks_parallel(chunk_info_list)
-        for it in chunk_info_list:
-            path,_,_ = it
-            Path(path).unlink(missing_ok=False)
         return segments
 
 class LocalModelFactory:

@@ -22,6 +22,11 @@ dependencies = [
   "langchain-openai>=1.0.3",
   "moviepy==1.0.3",
   "langchain>=1.0.4",
+  "flask==3.0.3",
+  "peewee==3.17.8",
+  "redis==5.2.1",
+  "flask-socketio==5.5.0",
+  "celery==5.4.0",
 ]
 
 [[tool.uv.index]]
@@ -43,5 +48,4 @@ torchvision = [
 torchaudio = [
   { index = "pytorch-cu118"},
 ]
-
 
